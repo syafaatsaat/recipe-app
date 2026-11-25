@@ -63,3 +63,18 @@ export async function addMyIngredient(
   });
 }
 
+
+/** The ingredient a typed name means, when it's an exact name or alias. Own rows win over the catalog. */
+export async function matchIngredient(db: Db, userId: string, text: string): Promise<CatalogIngredient | null> {
+  const q = text.trim().toLowerCase();
+  if (!q) return null;
+  const [row] = await withUser(db, userId, (tx) =>
+    tx
+      .select()
+      .from(ingredients)
+      .where(or(sql`lower(${ingredients.name}) = ${q}`, sql`${q} = any(${ingredients.aliases})`))
+      .orderBy(sql`${ingredients.ownerId} is null`)
+      .limit(1),
+  );
+  return row ? toCatalog(row) : null;
+}

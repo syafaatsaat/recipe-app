@@ -109,3 +109,13 @@
     @apply font-heading;
   }
 }
+
+/* Paper grain, only on photo placeholders and empty states (doc §8). */
+@utility grain {
+  background-color: var(--muted);
+  background-image:
+    radial-gradient(rgba(42, 38, 34, 0.06) 1px, transparent 1.2px),
+    radial-gradient(rgba(255, 255, 255, 0.35) 1px, transparent 1.4px);
+  background-size: 7px 7px, 11px 11px;
+  background-position: 0 0, 3px 5px;
+}

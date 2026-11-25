@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { emptyLine, type RecipeDraft } from "@/lib/recipes/schema";
 import { createDb } from "./client";
-import { addMyIngredient, searchIngredients } from "./ingredients";
+import { addMyIngredient, matchIngredient, searchIngredients } from "./ingredients";
 import { listPans } from "./pans";
 import { createRecipe, deleteRecipe, getRecipe, listRecipes, updateRecipe } from "./recipes";
 import { ingredients, recipeVersions } from "./schema";
@@ -136,6 +136,14 @@ describe("ingredients", () => {
     expect((await searchIngredients(db, ALICE, "espresso")).map((i) => i.name)).toEqual(["espresso powder"]);
     expect(await searchIngredients(db, BOB, "espresso")).toEqual([]);
     expect(await searchIngredients(db, ALICE, "  ")).toEqual([]);
+  });
+
+  it("matches exact names and aliases, preferring my own", async () => {
+    expect((await matchIngredient(db, ALICE, "Plain Flour"))?.name).toBe("all-purpose flour");
+    expect((await matchIngredient(db, ALICE, "espresso powder"))?.mine).toBe(true);
+    expect(await matchIngredient(db, BOB, "espresso powder")).toBeNull();
+    expect(await matchIngredient(db, ALICE, "flou")).toBeNull();
+    expect(await matchIngredient(db, ALICE, "")).toBeNull();
   });
 
   it("another user can't link my private ingredient to their recipe", async () => {

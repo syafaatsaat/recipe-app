@@ -3,8 +3,8 @@ import { render } from "@/lib/culinary";
 import { toRenderInput, toRenderLines, type CatalogIngredient } from "./render-input";
 import { emptyDraft, emptyLine, type RecipeDraft } from "./schema";
 
-const EGG = "00000000-0000-0000-0000-0000000000e9";
-const FLOUR = "00000000-0000-0000-0000-00000000f10e";
+const EGG = "7c2d4e6f-1a3b-4c5d-8e9f-0a1b2c3d4e5f";
+const FLOUR = "3f1e6a2c-8d4b-4c1a-9e2f-5b7d0c6a1f10";
 const catalog: Record<string, CatalogIngredient> = {
   [EGG]: { id: EGG, name: "egg", mine: false, densityGPerMl: null, eachG: 50, defaultScalingRule: "count_round", preferMassInMetric: true, isEgg: true },
   [FLOUR]: { id: FLOUR, name: "all-purpose flour", mine: false, densityGPerMl: 0.5072, eachG: null, defaultScalingRule: "linear", preferMassInMetric: true, isEgg: false },
