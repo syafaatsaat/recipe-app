@@ -7,10 +7,11 @@
 | App | **Next.js (App Router) + TypeScript** | One codebase and one deploy for UI and backend. Route handlers and server actions run the scraper server-side, which solves CORS. It is the stack a portfolio reviewer recognizes. |
 | Hosting | **Vercel Hobby** (free) | Zero-config deploys and preview URL per PR. Hobby is non-commercial only, which is fine for a portfolio. |
 | DB + Auth + Files | **Supabase free tier** (Postgres, Auth, Storage) | Relational data (recipes→ingredients→units→pans) needs SQL. You get one vendor for three needs. Row Level Security handles per-user ownership. Built-in full-text search covers search/filter later. |
-| ORM | **Drizzle** | SQL-shaped, typed, lightweight migrations, no codegen step or heavy runtime like Prisma. |
+| Migrations | **Raw SQL in `supabase/migrations/`** (Supabase CLI) | The single source of truth for tables, constraints, RLS policies and triggers. These all need Postgres/Supabase features (auth schema, `security definer` triggers, policies) that ORM migration tools handle badly. Applied locally with `supabase db reset` and tested with pgTAP (`supabase test db`). |
+| ORM | **Drizzle**, for typed queries only | SQL-shaped and typed, with no heavy runtime. `db/schema.ts` is *generated* from the DB (`pnpm db:pull`), and `db/relations.ts` is hand-written because introspection mis-joins composite FKs. Never use `drizzle-kit generate/push`. **Drizzle connects as `postgres`, which bypasses RLS**, so user-scoped queries must go through `db/withUser.ts` (sets role `authenticated` and the JWT claims per transaction). |
 | Validation | **Zod** | One schema shared by forms, API inputs and LLM structured output. |
 | UI | **Tailwind + shadcn/ui** | Fast and good-looking, and you own the components. |
-| Scraping | `fetch` + **cheerio** in a route handler | Order: JSON-LD `Recipe`, then microdata/RDFa, then an LLM fallback (Claude Haiku, structured output against the Zod schema). Cache raw HTML/JSON-LD per URL. |
+| Scraping | `fetch` + **cheerio** in a route handler | Order: JSON-LD `Recipe`, then microdata/RDFa, then an LLM fallback (Claude Haiku, currently `claude-haiku-5-5`, structured output against the Zod schema). Cache raw HTML/JSON-LD per URL. |
 | Ingredient line parsing | Own regex/lexicon parser, LLM fallback when confidence is low | JSON-LD gives you *strings* (`"1 ½ cups flour, sifted"`), not structure. This parser is the real work of the import feature. |
 | Domain logic | Pure TS module `lib/culinary/` (units, density, scaling, rounding, pans) | Runs on both client and server, with no I/O, so it's 100% unit-testable. This is the most portfolio-worthy code in the project, so make it well tested. |
 | Tests | **Vitest** (domain), **Playwright** (2–3 e2e flows) | |
@@ -21,9 +22,9 @@
 - Pure SPA + serverless scraper: same thing with more moving parts.
 
 **Gotchas to plan for now:**
-- **Supabase free projects pause after ~7 days idle.** A dead demo link is bad for a portfolio. Add a daily keep-alive query (Vercel Cron or a GitHub Action).
-- **Vercel function timeout** (Hobby default is short). Keep scraping and LLM calls to one request with a hard timeout. Don't chain retries in-request.
-- **Supabase image transforms are a paid feature.** Resize client-side before upload (2 sizes: 1600px and 400px, WebP).
+- **Supabase free projects pause after 1 week of inactivity** (verified). A dead demo link is bad for a portfolio. Add a daily keep-alive query. Vercel Cron on Hobby allows exactly this: at most once a day, fired anywhere within the scheduled hour.
+- **Vercel function timeout:** Hobby is 300 s, as both default and maximum (verified, with Fluid compute). That's no longer tight, but still put a hard timeout (~20 s) on each outbound fetch/LLM call so a hung site can't hold a request for 5 minutes. Don't chain retries in-request.
+- **Supabase image transforms are paid (Pro and up)** (verified). Resize client-side before upload (2 sizes: 1600px and 400px, WebP).
 - **Some sites block or Cloudflare-challenge server fetches.** Show "couldn't import, paste the text instead" and send the pasted text through the same parser/LLM path. This is also how you get "create your own recipe from text" for free.
 - **Imported images:** store the source URL and don't re-host by default (copyright plus storage quota). User photos go to Storage.
 
@@ -48,171 +49,33 @@
 
 ## 4. Schema (Postgres)
 
-```sql
--- enums
-create type recipe_source  as enum ('import','manual','paste');
-create type pan_shape      as enum ('round','square','rectangle','loaf','springform',
-                                    'sheet','bundt','tube','muffin','skillet','other');
-create type scaling_rule   as enum ('linear',      -- default
-                                    'count_round', -- eggs, whole items: round to 1 (or 0.5)
-                                    'leavening',   -- linear + warning at extreme factors
-                                    'to_taste',    -- shown unscaled: "salt, to taste"
-                                    'fixed');      -- never scales: "1 bay leaf", "pan spray"
+**The schema lives in [`supabase/migrations/`](../supabase/migrations/). Don't copy SQL back into this doc, because it will drift.**
 
--- users: Supabase auth.users; profile holds preferences
-create table profiles (
-  id            uuid primary key references auth.users on delete cascade,
-  display_name  text,
-  unit_system   text not null default 'us' check (unit_system in ('us','metric')),
-  created_at    timestamptz not null default now()
-);
+| Migration | Contents |
+|---|---|
+| `…000_init_schema.sql` | enums (`recipe_source`, `pan_shape`, `scaling_rule`), tables `profiles`, `ingredients`, `pans`, `recipes`, `recipe_sections`, `recipe_ingredients`, `recipe_steps`, `recipe_images`, `recipe_versions`, `import_jobs`, plus indexes |
+| `…001_rls_policies.sql` | RLS on every table, plus policies |
+| `…002_triggers.sql` | profile row on signup, `recipes.updated_at` |
 
--- ingredient catalog: density + defaults. Seed ~150 common items; user rows allowed.
-create table ingredients (
-  id                    uuid primary key default gen_random_uuid(),
-  owner_id              uuid references auth.users,           -- null = global seed
-  name                  text not null,                        -- 'all-purpose flour'
-  aliases               text[] not null default '{}',         -- {'ap flour','plain flour'}
-  density_g_per_ml      numeric(6,4),                         -- flour ≈ 0.5072 (120 g/cup). null = no vol↔mass
-  each_g                numeric(7,2),                         -- 1 large egg ≈ 50; enables count↔mass
-  default_scaling_rule  scaling_rule not null default 'linear',
-  prefer_mass_in_metric boolean not null default true,        -- metric view shows flour in g, milk in ml
-  shopping_category     text,                                 -- 'baking','dairy' (shopping list later)
-  unique (owner_id, name)
-);
-create index on ingredients using gin (aliases);
+Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks). Seed: [`supabase/seed.sql`](../supabase/seed.sql).
 
--- pans: global presets + user-defined. Dimensions in cm.
-create table pans (
-  id           uuid primary key default gen_random_uuid(),
-  owner_id     uuid references auth.users,                    -- null = preset
-  label        text not null,                                 -- '9×13 in rectangle'
-  shape        pan_shape not null,
-  diameter_cm  numeric(5,2),                                  -- round/springform/skillet
-  width_cm     numeric(5,2),                                  -- square/rect/loaf/sheet
-  length_cm    numeric(5,2),
-  depth_cm     numeric(5,2),                                  -- optional; enables volume mode
-  volume_ml    numeric(8,1),                                  -- bundt/tube (area meaningless)
-  cup_count    smallint,                                      -- muffin tins
-  check (
-    (shape in ('round','springform','skillet') and diameter_cm is not null) or
-    (shape in ('square','rectangle','loaf','sheet') and width_cm is not null and length_cm is not null) or
-    (shape in ('bundt','tube') and volume_ml is not null) or
-    (shape = 'muffin' and cup_count is not null) or
-    shape = 'other'
-  )
-);
-
-create table recipes (
-  id                 uuid primary key default gen_random_uuid(),
-  owner_id           uuid not null references auth.users on delete cascade,
-  title              text not null,
-  description        text,
-  source_type        recipe_source not null,
-  source_url         text,
-  source_name        text,                                    -- site / author for attribution
-  yield_qty          numeric(7,2),                            -- 24
-  yield_unit         text,                                    -- 'cookies','servings','loaf'
-  pan_id             uuid references pans,                    -- original pan; null = not pan-based
-  prep_min           int, cook_min int, total_min int,
-  oven_temp_c        numeric(5,1),                            -- display converts to °F
-  current_version_id uuid,                                    -- FK added after recipe_versions
-  search             tsvector generated always as (
-                       to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,''))
-                     ) stored,
-  created_at         timestamptz not null default now(),
-  updated_at         timestamptz not null default now()
-);
-create index on recipes using gin (search);
-create index on recipes (owner_id, updated_at desc);
-
--- optional sections: "Dough", "Filling", "Frosting"
-create table recipe_sections (
-  id         uuid primary key default gen_random_uuid(),
-  recipe_id  uuid not null references recipes on delete cascade,
-  title      text not null,
-  position   int not null
-);
-
-create table recipe_ingredients (
-  id               uuid primary key default gen_random_uuid(),
-  recipe_id        uuid not null references recipes on delete cascade,
-  section_id       uuid references recipe_sections on delete set null,
-  position         int not null,
-  raw_text         text,                                      -- '1 ½ cups flour, sifted' (import source)
-  quantity         numeric(10,4),                             -- 1.5 ; null = "salt to taste"
-  quantity_max     numeric(10,4),                             -- ranges: '2–3 cloves'
-  unit_code        text,                                      -- 'cup' | 'g' | 'tbsp' | null (count)
-  ingredient_id    uuid references ingredients,               -- link → density; null if unmatched
-  name             text not null,                             -- display name as written
-  preparation      text,                                      -- 'sifted', 'finely chopped'
-  note             text,                                      -- 'or substitute X'
-  is_optional      boolean not null default false,
-  scaling_rule     scaling_rule,                              -- null = inherit ingredients.default
-  parse_confidence real,                                      -- <0.8 → highlight for review
-  check (quantity_max is null or quantity_max >= quantity)
-);
-create index on recipe_ingredients (recipe_id, position);
-
-create table recipe_steps (
-  id          uuid primary key default gen_random_uuid(),
-  recipe_id   uuid not null references recipes on delete cascade,
-  section_id  uuid references recipe_sections on delete set null,
-  position    int not null,
-  body        text not null,
-  -- future cook mode: [{label:'bake', seconds:1500, offset:[start,end]}] parsed from text
-  timers      jsonb not null default '[]'
-);
-
-create table recipe_images (
-  id           uuid primary key default gen_random_uuid(),
-  recipe_id    uuid not null references recipes on delete cascade,
-  step_id      uuid references recipe_steps on delete set null, -- per-step photos
-  origin       text not null check (origin in ('upload','import')),
-  storage_path text,                                          -- 'u/{uid}/{recipe}/{id}.webp' (uploads)
-  thumb_path   text,                                          -- 400px variant
-  external_url text,                                          -- imports: hotlinked source image
-  width        int, height int,
-  blurhash     text,                                          -- placeholder while loading
-  alt          text,
-  is_cover     boolean not null default false,
-  position     int not null default 0,
-  created_at   timestamptz not null default now(),
-  check ((origin='upload' and storage_path is not null) or (origin='import' and external_url is not null))
-);
-create unique index one_cover_per_recipe on recipe_images (recipe_id) where is_cover;
-
--- version history: snapshot on every save. v1 = as imported/created.
-create table recipe_versions (
-  id          uuid primary key default gen_random_uuid(),
-  recipe_id   uuid not null references recipes on delete cascade,
-  version_no  int not null,
-  snapshot    jsonb not null,                                 -- full recipe+ingredients+steps (Zod-typed)
-  change_note text,
-  created_at  timestamptz not null default now(),
-  unique (recipe_id, version_no)
-);
-alter table recipes add foreign key (current_version_id) references recipe_versions;
-
--- import cache / debugging
-create table import_jobs (
-  id          uuid primary key default gen_random_uuid(),
-  owner_id    uuid not null references auth.users,
-  url         text not null,
-  method      text check (method in ('jsonld','microdata','llm','paste')),
-  status      text not null check (status in ('ok','partial','failed')),
-  raw_payload jsonb,                                          -- extracted JSON-LD / LLM output
-  error       text,
-  recipe_id   uuid references recipes on delete set null,
-  created_at  timestamptz not null default now()
-);
-```
+**What changed from the v1 draft SQL, and why.** The draft applied cleanly, but probing it found the following. The verbatim draft is in git history (commit `50eeb88`).
+- **No RLS at all.** Supabase exposes `public` tables through the Data API with the public anon key, so with RLS off, anyone could read and write every table. Every table now has RLS. Child tables have no `owner_id`, so their policies check ownership through `recipes`. Global `ingredients`/`pans` are readable by `anon` and `authenticated` and writable by no one through the API. `recipe_versions` is select/insert only, so history can't be edited. Insert/update policies also check that a linked `pan_id`/`ingredient_id` is one the user can see, because FK checks ignore RLS.
+- **Duplicate global ingredients were allowed.** `unique (owner_id, name)` treats NULL owners as distinct. Now `unique nulls not distinct`.
+- **No `unit_code` CHECK** although §3 promised one. It's now present, and the list must equal `UNIT_CODES` in `lib/culinary/units.ts` (a test enforces this).
+- **Cross-recipe references were possible.** `section_id`, `step_id` and `current_version_id` could point at another recipe's rows. These are now composite FKs (`(section_id, recipe_id) → recipe_sections(id, recipe_id)`, etc.) with `on delete set null (col)`.
+- **Deleting a user failed.** `import_jobs`/`ingredients`/`pans.owner_id` had no `on delete cascade`. `recipes.pan_id` and `recipe_ingredients.ingredient_id` are now `on delete set null`.
+- **Negative values were accepted** (quantities, pan dimensions, yields, times, densities). Positivity checks were added, `parse_confidence` is limited to 0–1, and `quantity_max` now requires `quantity`.
+- **Missing triggers:** profile-on-signup (`security definer`, empty `search_path`) and `updated_at`.
+- **11 unindexed foreign keys.** All are now indexed.
 
 **Why snapshots and not diffs for versions:** recipes are small (a few KB), and restore becomes a single read. It also doubles as an immutable "original import" (v1). The normalized tables stay the source of truth for queries. The snapshot is only for history and restore.
 
-**RLS:** every user table gets `owner_id = auth.uid()`. Global `ingredients`/`pans` (`owner_id is null`) are readable by everyone.
+**RLS:** see the list above and `…001_rls_policies.sql`. Server code that uses Drizzle must go through `withUser` or RLS is silently bypassed.
 
 ### Future tables (schema already accommodates them)
+
+*Sketch only: not yet migrated or validated. These need the same fixes (RLS, FK cascades, indexes) when they're added.*
 
 ```sql
 create table tags (id uuid primary key default gen_random_uuid(), owner_id uuid, name text, unique(owner_id,name));
@@ -302,3 +165,38 @@ render(recipe, scale: ScaleState, units: UnitSystem): RenderedRecipe  // pure; n
 6. Photo upload (client resize, Storage, cover/per-step).
 7. **Design pass 2: visual polish (2–3 days).** Do this once real recipes and photos exist, because you can't judge a design against lorem ipsum. Covers the landing/demo page, empty states, mobile layout (people cook from phones), loading skeletons, dark mode. Then seed a public demo account and launch the portfolio here, since this is the first shippable version.
 8. Version history, then cook mode, then search/tags, then shopping list, then cook log. Each feature gets a quick wireframe before you build it, not a separate design phase.
+
+## 7. Verified facts (checked 2026-11-25)
+
+Recheck these before relying on them. Limits change.
+
+**Hosting limits**
+
+| Fact | Value | Source |
+|---|---|---|
+| Vercel Hobby function duration | 300 s default and maximum (Fluid compute) | [vercel.com/docs/functions/limitations](https://vercel.com/docs/functions/limitations) |
+| Vercel Hobby Cron Jobs | 100 per project, **at most once per day**, fires anywhere within the hour (±59 min). Cron Jobs is marked "legacy", to be migrated to *Schedules* (beta, Hobby min interval 15 min). | [cron usage & pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing), [schedules limits](https://vercel.com/docs/schedules/limits) |
+| Supabase Free | 500 MB database, 1 GB file storage, 50,000 MAU, 5 GB egress, 2 active projects, **paused after 1 week of inactivity** | [supabase.com/pricing](https://supabase.com/pricing) |
+| Supabase image transformations | Pro plan and above only | [image transformations docs](https://supabase.com/docs/guides/storage/serving/image-transformations) |
+| Postgres version | Local stack (CLI 3.3.0) runs **Postgres 17** (`supabase/config.toml`). The docs don't state the hosted default for new projects, so check it on the dashboard when the project is created. The schema needs ≥15 (`NULLS NOT DISTINCT`, `SET NULL (col)`). | `supabase/config.toml` |
+| Claude Haiku model ID | `claude-haiku-5-5` | [models overview](https://platform.claude.com/docs/en/about-claude/models/overview) |
+
+**Pinned versions** (exact, no ranges; see `package.json`)
+
+| Package | Version | Note |
+|---|---|---|
+| next / eslint-config-next | 16.4.6 | |
+| react / react-dom | 19.3.1 | |
+| typescript | 5.9.3 | The latest is 7.0.2 (the native Go port). Stayed on 5.x, the major create-next-app 16.4.6 targets. Revisit once Next documents TS 7 support. |
+| eslint | 10.15.0 | 9.x is deprecated. Lint passes on 10. |
+| tailwindcss / @tailwindcss/turbopack | 4.3.5 | |
+| zod | 4.6.7 | |
+| drizzle-orm / drizzle-kit | 0.45.4 / 0.31.11 | |
+| postgres (driver) | 4.1.1 | |
+| vitest / @vitest/coverage-v8 | 5.1.1 | |
+| fast-check | 4.11.0 | |
+| supabase (CLI) | 3.3.0 | 3.4.0 was <24 h old and blocked by pnpm's `minimumReleaseAge`. Bump later. |
+| @types/react | 19.3.0 | 19.3.1 was blocked the same way. |
+| @types/node | 24.19.2 | Unverified: match it to the Node version Vercel runs when deploying (local dev is Node 26). |
+
+Not installed yet (added at their milestone): cheerio 1.2.0, shadcn 4.23.0, @playwright/test 1.65.1, @supabase/supabase-js 2.119.2, @supabase/ssr 0.12.7, @anthropic-ai/sdk 1.14.0. Re-check versions when installing.
