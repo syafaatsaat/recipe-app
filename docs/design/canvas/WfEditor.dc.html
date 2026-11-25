@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Screen · Ingredient editor (E)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&amp;family=Shippori+Mincho:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2A2622}
+.scroll::-webkit-scrollbar{display:none}
+.mono{font-family:'DM Mono',monospace}
+button{font-family:'DM Sans',sans-serif;color:#2A2622;cursor:pointer}
+input{font-family:'DM Sans',sans-serif;color:#2A2622}
+.lbl{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#6A6158}
+.fld{height:46px;border:1px solid #CFC6B8;border-radius:10px;background:#FBF9F4;padding:0 12px;font-size:15px;color:#2A2622;box-sizing:border-box}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F3EFE7; color: #2A2622; font-family: 'DM Sans', system-ui, sans-serif">
+<div class="scroll" style="height: 844px; overflow-y: auto; scrollbar-width: none; padding: 12px 24px 120px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px">
+
+<div style="display: flex; justify-content: space-between; align-items: center">
+<a href="WfRecipe.dc.html" style="min-height: 44px; display: flex; align-items: center; gap: 4px; font-size: 15px; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>Cancel</a>
+<span style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #6A6158">Editing · v2</span>
+</div>
+
+<label class="lbl">Title
+<input class="fld" value="Fudgy cocoa brownies" style="font-family: 'Shippori Mincho', serif; font-size: 20px; font-weight: 600; height: 50px">
+</label>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+<label class="lbl">Makes
+<div class="fld" style="display: flex; align-items: center; gap: 6px"><input value="12" aria-label="Yield amount" style="width: 32px; border: 0; background: transparent; font: 500 15px 'DM Mono', monospace; outline: none"><span>squares</span></div>
+</label>
+<label class="lbl">Pan
+<div class="fld" style="display: flex; align-items: center; justify-content: space-between">9 in round<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></div>
+</label>
+</div>
+
+<sc-for list="{{sections}}" as="s" hint-placeholder-count="2">
+<section style="display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #DDD5C8">
+<span aria-label="Drag to reorder section" style="color: #A39A8E; font-size: 16px; width: 20px">⠿</span>
+<h2 style="margin: 0; flex: 1; font-family: 'Shippori Mincho', serif; font-weight: 500; font-size: 20px">{{s.name}}</h2>
+<span style="font-size: 13px; color: #6A6158">{{s.count}}</span>
+</div>
+<sc-for list="{{s.lines}}" as="l" hint-placeholder-count="3">
+<div style="{{l.boxStyle}}">
+<span aria-hidden="true" style="color: #A39A8E; font-size: 14px; padding-top: 2px; width: 20px">⠿</span>
+<div style="display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 0">
+<span class="mono" style="font-size: 12px; color: #6A6158">{{l.raw}}</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{l.chips}}" as="c" hint-placeholder-count="4">
+<button onClick="{{c.on}}" aria-label="{{c.aria}}" style="{{c.style}}">{{c.text}}</button>
+</sc-for>
+</div>
+<sc-if value="{{l.unmatched}}" hint-placeholder-val="{{false}}">
+<span style="font-size: 13px; line-height: 1.4; color: #8F4329">Not in your ingredients, so it can’t show grams. Tap it to pick or add one.</span>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</section>
+</sc-for>
+
+<div style="padding: 12px 14px; background: #FBF9F4; border: 1px solid #CFC6B8; border-radius: 14px; display: flex; flex-direction: column; gap: 8px">
+<label for="newline" style="font-size: 13px; color: #6A6158">Add to Batter. Type it the way you’d write it.</label>
+<input id="newline" value="{{draft}}" onInput="{{onDraft}}" placeholder="e.g. 1 ½ cups flour, sifted" style="height: 42px; border: 0; border-bottom: 1px solid #CFC6B8; background: transparent; font-size: 16px; outline: none">
+<sc-if value="{{hasDraft}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-wrap: wrap; gap: 6px" aria-live="polite">
+<sc-for list="{{draftChips}}" as="c" hint-placeholder-count="4">
+<span style="{{c.style}}">{{c.text}}</span>
+</sc-for>
+</div>
+</sc-if>
+<span style="font-size: 11px; color: #6A6158">Simplified parser for this mock-up; the real one is M5.</span>
+</div>
+
+<button style="min-height: 44px; border: 1px dashed #CFC6B8; border-radius: 22px; background: transparent; font-size: 14px; color: #56633F; font-weight: 500">+ Add a section</button>
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; padding-bottom: 8px; border-bottom: 1px solid #DDD5C8; font-family: 'Shippori Mincho', serif; font-weight: 500; font-size: 20px">Method</h2>
+<div style="display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 6px 0; font-size: 15px; line-height: 1.5"><span class="mono" style="color: #56633F">1</span><span>Heat the oven to 350 °F. Line the pan…</span><span class="mono" style="color: #56633F">2</span><span>Whisk the melted butter, sugar and salt…</span></div>
+<span style="font-size: 14px; color: #56633F; font-weight: 500">+ Add step</span>
+</div>
+</div>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 24px 20px; background: #FBF9F4; border-top: 1px solid #DDD5C8; display: flex; align-items: center; gap: 14px">
+<span style="font-size: 13px; line-height: 1.4; color: #6A6158; flex: 1">Saving makes version 3. Version 2 stays in history.</span>
+<a href="WfRecipe.dc.html" style="height: 46px; padding: 0 26px; display: flex; align-items: center; border-radius: 23px; background: #56633F; color: #FBF9F4; font-size: 15px; font-weight: 500; text-decoration: none">Save</a>
+</div>
+
+<sc-if value="{{picker}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; background: rgba(42, 38, 34, 0.38); z-index: 8">
+<button aria-label="Close" onClick="{{closePicker}}" style="position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent"></button>
+<div role="dialog" aria-label="{{pickerTitle}}" style="position: absolute; left: 0; right: 0; bottom: 0; background: #FBF9F4; border-radius: 22px 22px 0 0; padding: 10px 24px 28px; display: flex; flex-direction: column; gap: 10px">
+<div style="width: 40px; height: 4px; border-radius: 2px; background: #CFC6B8; align-self: center"></div>
+<h2 style="margin: 6px 0 4px; font-family: 'Shippori Mincho', serif; font-weight: 500; font-size: 21px">{{pickerTitle}}</h2>
+
+<sc-if value="{{showOptions}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{options}}" as="o" hint-placeholder-count="4">
+<button onClick="{{o.on}}" style="{{o.style}}"><span>{{o.label}}</span><span style="font-size: 12px; color: #6A6158">{{o.meta}}</span></button>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{addForm}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<label class="lbl">Name
+<input class="fld" value="espresso powder">
+</label>
+<label class="lbl">Weight of 1 cup, in grams (optional)
+<div class="fld" style="display: flex; align-items: center; gap: 6px"><input inputmode="decimal" placeholder="e.g. 85" aria-label="Grams per cup" style="flex: 1; border: 0; background: transparent; font: 500 16px 'DM Mono', monospace; outline: none"><span class="mono" style="font-size: 14px; color: #6A6158">g / cup</span></div>
+<span style="line-height: 1.4">Skip it if you don’t know. The line still scales; it just won’t show grams.</span>
+</label>
+<div style="display: flex; gap: 10px">
+<button onClick="{{backToOptions}}" style="flex: 1; height: 46px; border: 1px solid #CFC6B8; border-radius: 23px; background: transparent; font-size: 15px; font-weight: 500">Back</button>
+<button onClick="{{addMine}}" style="flex: 2; height: 46px; border: 0; border-radius: 23px; background: #56633F; color: #FBF9F4; font-size: 15px; font-weight: 500">Add to my ingredients</button>
+</div>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+const UNITS = { tsp: "tsp", teaspoon: "tsp", teaspoons: "tsp", tbsp: "tbsp", tablespoon: "tbsp", tablespoons: "tbsp", cup: "cup", cups: "cups", g: "g", grams: "g", ml: "ml", oz: "oz", lb: "lb", pinch: "pinch" };
+const KNOWN = { flour: "all-purpose flour", "all-purpose flour": "all-purpose flour", sugar: "granulated sugar", butter: "unsalted butter", "unsalted butter": "unsalted butter", eggs: "large eggs", egg: "large eggs", "cocoa powder": "cocoa powder", cocoa: "cocoa powder", salt: "salt", milk: "milk", water: "water", "baking powder": "baking powder", "vanilla extract": "vanilla extract" };
+function toyParse(s) {
+  let rest = s.trim(), qty = "", unit = "", prep = "";
+  const m = rest.match(/^(\d+(?:[.\/]\d+)?\s*[½¼¾⅓⅔⅛]?|[½¼¾⅓⅔⅛])(\s*[-–]\s*\d+)?\s*/);
+  if (m) { qty = (m[1] + (m[2] || "")).replace(/\s+/g, "").replace("-", "–"); rest = rest.slice(m[0].length); }
+  const w = rest.split(/\s+/)[0]?.toLowerCase().replace(/\.$/, "");
+  if (w && UNITS[w]) { unit = UNITS[w]; rest = rest.slice(rest.split(/\s+/)[0].length).trim(); }
+  const c = rest.indexOf(",");
+  if (c >= 0) { prep = rest.slice(c + 1).trim(); rest = rest.slice(0, c).trim(); }
+  if (/\bto taste$/i.test(rest)) { rest = rest.replace(/\s*to taste$/i, ""); qty = "to taste"; }
+  const name = rest.toLowerCase();
+  return { qty, unit, name, match: KNOWN[name] || null, prep };
+}
+const START = [
+  { section: "Batter", raw: "10 tbsp unsalted butter, melted", qty: "10", unit: "tbsp", match: "unsalted butter", name: "unsalted butter", prep: "melted" },
+  { section: "Batter", raw: "1 ½ cups flour, sifted", qty: "1½", unit: "cups", match: "all-purpose flour", name: "flour", prep: "sifted" },
+  { section: "Batter", raw: "1-2 tsp espresso powder, optional", qty: "1–2", unit: "tsp", match: null, name: "espresso powder", prep: "optional" },
+  { section: "Topping", raw: "flaky salt to taste", qty: "to taste", unit: "", match: "flaky salt", name: "flaky salt", prep: "" },
+];
+const CH = "min-height: 36px; padding: 0 12px; border-radius: 18px; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; ";
+const STY = {
+  qty: CH + "border: 1px solid #CFC6B8; background: #FBF9F4; font-family: 'DM Mono', monospace; font-weight: 500;",
+  unit: CH + "border: 1px solid #CFC6B8; background: #FBF9F4;",
+  ok: CH + "border: 1px solid #56633F; background: #E8EBE0; color: #2A2622;",
+  miss: CH + "border: 1px dashed #8F4329; background: #FBF9F4; color: #8F4329;",
+  prep: CH + "border: 1px solid transparent; background: transparent; color: #6A6158; font-style: italic;",
+};
+const UNIT_OPTS = [["cups", "volume"], ["tbsp", "volume"], ["tsp", "volume"], ["g", "weight"], ["oz", "weight"], ["(none)", "just a count"]];
+function chipsFor(l, on) {
+  const out = [];
+  if (l.qty) out.push({ text: l.qty, style: STY.qty, aria: "Amount " + l.qty, on: on("qty") });
+  if (l.unit) out.push({ text: l.unit, style: STY.unit, aria: "Unit " + l.unit + ", tap to change", on: on("unit") });
+  if (l.name) out.push(l.match
+    ? { text: l.match + (l.mine ? " · mine" : "") + " ✓", style: STY.ok, aria: "Matched " + l.match + ", tap to change", on: on("ing") }
+    : { text: l.name + " ?", style: STY.miss, aria: l.name + " not matched, tap to pick", on: on("ing") });
+  if (l.prep) out.push({ text: l.prep, style: STY.prep, aria: "Preparation " + l.prep, on: on("prep") });
+  return out;
+}
+class Component extends DCLogic {
+  state = { lines: START, draft: "1 ½ cups flour, sifted", picker: null, adding: false };
+  renderVals() {
+    const lines = this.state.lines;
+    const sections = ["Batter", "Topping"].map((name) => {
+      const ls = lines.map((l, i) => ({ l, i })).filter((x) => x.l.section === name);
+      return { name, count: ls.length + (ls.length === 1 ? " line" : " lines"), lines: ls.map(({ l, i }) => {
+        const miss = !l.match && !!l.name;
+        return {
+          raw: l.raw, unmatched: miss,
+          boxStyle: "display: flex; gap: 6px; padding: 12px 10px 12px 0; border-bottom: 1px solid #E5DED2;" + (miss ? " background: #F6ECE6; margin: 0 -10px; padding-left: 10px;" : ""),
+          chips: chipsFor(l, (field) => () => this.setState({ adding: false, picker: field === "unit" || field === "ing" ? { i, field } : null })),
+        };
+      }) };
+    });
+    const d = toyParse(this.state.draft || "");
+    const draftChips = chipsFor(d, () => null).map(({ text, style }) => ({ text, style }));
+    const p = this.state.picker;
+    let options = [], pickerTitle = "";
+    const setLine = (patch) => () => this.setState({ picker: null, adding: false, lines: lines.map((x, j) => (j === p.i ? { ...x, ...patch } : x)) });
+    if (p) {
+      const l = lines[p.i];
+      const opt = (active) => "min-height: 50px; padding: 6px 14px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 15px; text-align: left; " +
+        (active ? "border: 1.5px solid #56633F; background: #F3EFE7;" : "border: 1px solid #CFC6B8; background: transparent;");
+      if (p.field === "unit") {
+        pickerTitle = "Unit for “" + l.name + "”";
+        options = UNIT_OPTS.map(([u, meta]) => ({ label: u, meta, style: opt(u === l.unit), on: setLine({ unit: u === "(none)" ? "" : u }) }));
+      } else if (l.name === "espresso powder") {
+        pickerTitle = this.state.adding ? "Add to my ingredients" : "Which ingredient is “espresso powder”?";
+        options = [
+          { label: "Add “espresso powder” to my ingredients", meta: "new", style: opt(false) + " color: #56633F; font-weight: 500;", on: () => this.setState({ adding: true }) },
+          { label: "instant coffee", meta: "from the catalog", style: opt(false), on: setLine({ match: "instant coffee", mine: false }) },
+          { label: "Leave unmatched", meta: "no grams", style: opt(!l.match), on: setLine({ match: null, mine: false }) },
+        ];
+      } else {
+        pickerTitle = "Which ingredient is “" + l.name + "”?";
+        options = [[l.match || l.name, l.match], ["bread flour", "bread flour"], ["cake flour", "cake flour"]].map(([label, m]) => ({ label, meta: "from the catalog", style: opt(m === l.match), on: setLine({ match: m }) }));
+        options.push({ label: "Leave unmatched", meta: "no grams", style: opt(!l.match), on: setLine({ match: null }) });
+      }
+    }
+    const adding = !!p && this.state.adding;
+    return {
+      sections, draft: this.state.draft, hasDraft: !!(this.state.draft || "").trim(), draftChips,
+      onDraft: (e) => this.setState({ draft: e.target.value }),
+      picker: !!p, pickerTitle, options, showOptions: !adding, addForm: adding,
+      backToOptions: () => this.setState({ adding: false }),
+      addMine: p ? setLine({ match: "espresso powder", mine: true }) : () => {},
+      closePicker: () => this.setState({ picker: null, adding: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>

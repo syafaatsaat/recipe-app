@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Brownies · Test-kitchen notebook</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2B5797}a:hover{color:#1A2330}
+.grid{background-color:#FAFAF6;background-image:linear-gradient(#DCE5EE 1px,transparent 1px),linear-gradient(90deg,#DCE5EE 1px,transparent 1px);background-size:20px 20px;background-position:-1px -1px}
+.scroll::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div class="grid" style="width: 390px; height: 844px; position: relative; overflow: hidden; color: #1A2330; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+<div class="scroll" style="height: 844px; overflow-y: auto; scrollbar-width: none">
+
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px">
+<button aria-label="Back" style="width: 44px; height: 44px; border: 0; background: transparent; color: #1A2330; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #566173">VERSION 1 · MANUAL</span>
+<button aria-label="Recipe options" style="width: 44px; height: 44px; border: 0; background: transparent; color: #1A2330; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+</div>
+
+<div style="padding: 0 20px">
+<div style="position: relative; height: 210px; margin: 8px 6px 0; background: #FFFFFF; border: 1px solid #C9D3DE; box-shadow: 0 1px 0 #C9D3DE; transform: rotate(-1.2deg); display: flex; align-items: center; justify-content: center; color: #566173; font-family: 'IBM Plex Mono', monospace; font-size: 12px">
+<div style="position: absolute; top: -9px; left: 40px; width: 70px; height: 18px; background: rgba(227, 214, 170, 0.75); transform: rotate(-4deg)"></div>
+<div style="position: absolute; top: -9px; right: 36px; width: 70px; height: 18px; background: rgba(227, 214, 170, 0.75); transform: rotate(5deg)"></div>
+[ cover photo ]
+</div>
+<h1 style="margin: 26px 0 4px; font-weight: 600; font-size: 28px; line-height: 1.15">Fudgy cocoa brownies</h1>
+<p style="margin: 0; color: #566173; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.6">{{meta}}</p>
+</div>
+
+<div style="margin: 20px 20px 0; padding: 14px; background: #FFFFFF; border: 1px solid #C9D3DE; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #566173">SCALE FACTOR</span>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 600; color: {{accent}}">×{{factor}}</span>
+</div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="4">
+<sc-if value="{{c.active}}" hint-placeholder-val="{{false}}"><button aria-pressed="true" onClick="{{c.pick}}" style="min-width: 52px; height: 44px; padding: 0 10px; border: 1.5px solid {{accent}}; border-radius: 2px; background: {{accent}}; color: #FFFFFF; font: 500 15px 'IBM Plex Mono', monospace; cursor: pointer">{{c.label}}</button></sc-if>
+<sc-if value="{{c.inactive}}" hint-placeholder-val="{{true}}"><button aria-pressed="false" onClick="{{c.pick}}" style="min-width: 52px; height: 44px; padding: 0 10px; border: 1px solid #9FB0C2; border-radius: 2px; background: #FFFFFF; color: #1A2330; font: 500 15px 'IBM Plex Mono', monospace; cursor: pointer">{{c.label}}</button></sc-if>
+</sc-for>
+<sc-if value="{{panActive}}" hint-placeholder-val="{{true}}"><button onClick="{{openSheet}}" aria-haspopup="dialog" style="height: 44px; padding: 0 10px; border: 1.5px solid {{accent}}; border-radius: 2px; background: {{accent}}; color: #FFFFFF; font: 500 15px 'IBM Plex Mono', monospace; display: flex; align-items: center; gap: 6px; cursor: pointer">pan: 9×13<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></sc-if>
+<sc-if value="{{panInactive}}" hint-placeholder-val="{{false}}"><button onClick="{{openSheet}}" aria-haspopup="dialog" style="height: 44px; padding: 0 10px; border: 1px solid #9FB0C2; border-radius: 2px; background: #FFFFFF; color: #1A2330; font: 500 15px 'IBM Plex Mono', monospace; display: flex; align-items: center; gap: 6px; cursor: pointer">more<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></sc-if>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div role="group" aria-label="Units" style="display: flex; border: 1px solid #9FB0C2; border-radius: 2px">
+<button aria-pressed="{{us}}" onClick="{{setUS}}" style="{{usStyle}}">US</button>
+<button aria-pressed="{{metric}}" onClick="{{setMetric}}" style="{{metricStyle}}">metric</button>
+</div>
+<sc-if value="{{scaled}}" hint-placeholder-val="{{true}}"><button onClick="{{reset}}" style="height: 44px; border: 0; background: transparent; color: {{accent}}; font: 500 14px 'IBM Plex Mono', monospace; cursor: pointer">↺ reset</button></sc-if>
+</div>
+</div>
+
+<sc-if value="{{hasNotes}}" hint-placeholder-val="{{true}}">
+<div style="margin: 14px 20px 0 44px; display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="1">
+<div style="position: relative; color: #AE2229; font-size: 14px; line-height: 1.45; font-style: italic"><span style="position: absolute; left: -22px; top: 0; font-family: 'IBM Plex Mono', monospace; font-style: normal; font-weight: 600">※</span>{{n.text}}</div>
+</sc-for>
+</div>
+</sc-if>
+
+<div style="padding: 26px 20px 0">
+<h2 style="margin: 0 0 4px; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 13px; color: #566173">01 — INGREDIENTS</h2>
+<sc-for list="{{items}}" as="it" hint-placeholder-count="9">
+<div style="display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 10px; padding: 11px 0; border-bottom: 1px solid #C9D3DE; font-size: 15px; line-height: 1.4">
+<div style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 15px">{{it.amount}}</div>
+<div>
+<span>{{it.name}}</span><sc-if value="{{it.hasPrep}}" hint-placeholder-val="{{false}}"><span style="color: #566173">, {{it.prep}}</span></sc-if>
+<sc-if value="{{it.hasOrig}}" hint-placeholder-val="{{true}}"><div style="color: #566173; font-family: 'IBM Plex Mono', monospace; font-size: 12px; margin-top: 2px"><span style="text-decoration: line-through">{{it.orig}}</span> orig.</div></sc-if>
+<sc-if value="{{it.leaven}}" hint-placeholder-val="{{false}}"><div style="color: #AE2229; font-size: 13px; font-style: italic; margin-top: 2px">※ may not rise the same at this size</div></sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="padding: 30px 20px 48px">
+<h2 style="margin: 0 0 12px; font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 13px; color: #566173">02 — METHOD</h2>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; font-size: 15px; line-height: 1.55">
+<li style="display: grid; grid-template-columns: 34px minmax(0, 1fr)"><span style="font-family: 'IBM Plex Mono', monospace; color: {{accent}}; font-weight: 600">1.</span><span>Heat the oven to {{oven}}. Line the pan with baking paper.</span></li>
+<li style="display: grid; grid-template-columns: 34px minmax(0, 1fr)"><span style="font-family: 'IBM Plex Mono', monospace; color: {{accent}}; font-weight: 600">2.</span><span>Whisk the melted butter, sugar and eggs until glossy, then the vanilla.</span></li>
+<li style="display: grid; grid-template-columns: 34px minmax(0, 1fr)"><span style="font-family: 'IBM Plex Mono', monospace; color: {{accent}}; font-weight: 600">3.</span><span>Fold in the cocoa, flour, baking powder and salt. Spread in the pan, scatter flaky salt, and bake until just set.</span></li>
+</ol>
+</div>
+</div>
+
+<sc-if value="{{sheet}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; background: rgba(26, 35, 48, 0.4)">
+<button aria-label="Close" onClick="{{closeSheet}}" style="position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; cursor: pointer"></button>
+<div role="dialog" aria-label="Scale recipe" class="grid" style="position: absolute; left: 0; right: 0; bottom: 0; border-top: 1.5px solid #1A2330; padding: 8px 20px 26px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<h2 style="margin: 0; font-weight: 600; font-size: 20px">Scale recipe</h2>
+<button aria-label="Close" onClick="{{closeSheet}}" style="width: 44px; height: 44px; border: 0; background: transparent; color: #1A2330; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<label style="display: flex; flex-direction: column; gap: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #566173">multiply by<input inputmode="decimal" placeholder="1.5" style="height: 44px; border: 1px solid #9FB0C2; border-radius: 2px; background: #FFFFFF; padding: 0 10px; font: 500 16px 'IBM Plex Mono', monospace; color: #1A2330"></label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #566173">make (squares)<input inputmode="numeric" placeholder="12" style="height: 44px; border: 1px solid #9FB0C2; border-radius: 2px; background: #FFFFFF; padding: 0 10px; font: 500 16px 'IBM Plex Mono', monospace; color: #1A2330"></label>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #566173">bake in a different pan</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button onClick="{{pickRound}}" style="{{roundStyle}}"><svg width="120" height="78" viewBox="0 0 120 78" role="img" aria-label="9 inch round pan diagram"><circle cx="60" cy="36" r="27" fill="none" stroke="#1A2330" stroke-width="1.5"/><path d="M33 72h54M33 68v8M87 68v8" stroke="#566173" stroke-width="1"/><text x="60" y="40" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="#566173">63.6 in²</text></svg><span>9 in round</span><span style="color: #566173; font-size: 12px">original</span></button>
+<button onClick="{{pickPan}}" style="{{rectStyle}}"><svg width="120" height="78" viewBox="0 0 120 78" role="img" aria-label="9 by 13 inch rectangle pan diagram"><rect x="14" y="12" width="92" height="50" fill="none" stroke="#1A2330" stroke-width="1.5"/><path d="M14 72h92M14 68v8M106 68v8" stroke="#566173" stroke-width="1"/><text x="60" y="41" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="#566173">117 in²</text></svg><span>9×13 in rect.</span><span style="color: #566173; font-size: 12px">×1.84</span></button>
+</div>
+<button disabled style="min-height: 48px; padding: 8px 12px; border: 1px dashed #9FB0C2; border-radius: 2px; background: transparent; color: #566173; font: 400 14px 'IBM Plex Sans', sans-serif; text-align: left">12-cup muffin tin · <em>can’t convert a cake pan to muffins</em></button>
+</div>
+</div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2B5797","options":["#2B5797","#1F6E5A","#5B3F8C"]},"$preview":{"width":390,"height":844}}'>
+const D = {"1|us":{"f":1,"w":[],"i":[["10 tbsp","unsalted butter","melted","",0],["1¼ cups","granulated sugar","","",0],["2","large eggs","","",0],["1 tsp","vanilla extract","","",0],["¾ cup","cocoa powder","","",0],["½ cup","all-purpose flour","","",0],["½ tsp","baking powder","","",0],["¼ tsp","salt","","",0],["","flaky salt","for the top","",0]]},"1|metric":{"f":1,"w":[],"i":[["140 g","unsalted butter","melted","10 tbsp",0],["250 g","granulated sugar","","1¼ cups",0],["2","large eggs","","",0],["5 ml","vanilla extract","","1 tsp",0],["63 g","cocoa powder","","¾ cup",0],["60 g","all-purpose flour","","½ cup",0],["2 g","baking powder","","½ tsp",0],["1 ml","salt","","¼ tsp",0],["","flaky salt","for the top","",0]]},"2|us":{"f":2,"w":[],"i":[["1¼ cups","unsalted butter","melted","10 tbsp",0],["2½ cups","granulated sugar","","1¼ cups",0],["4 eggs","","","2",0],["2 tsp","vanilla extract","","1 tsp",0],["1½ cups","cocoa powder","","¾ cup",0],["1 cup","all-purpose flour","","½ cup",0],["1 tsp","baking powder","","½ tsp",0],["½ tsp","salt","","¼ tsp",0],["","flaky salt","for the top","",0]]},"2|metric":{"f":2,"w":[],"i":[["280 g","unsalted butter","melted","10 tbsp",0],["495 g","granulated sugar","","1¼ cups",0],["4 eggs","","","2",0],["10 ml","vanilla extract","","1 tsp",0],["125 g","cocoa powder","","¾ cup",0],["120 g","all-purpose flour","","½ cup",0],["4 g","baking powder","","½ tsp",0],["2.5 ml","salt","","¼ tsp",0],["","flaky salt","for the top","",0]]},"3|us":{"f":3,"w":["LEAVENING_EXTREME"],"i":[["1¾ cups + 2 tbsp","unsalted butter","melted","10 tbsp",0],["3¾ cups","granulated sugar","","1¼ cups",0],["6 eggs","","","2",0],["1 tbsp","vanilla extract","","1 tsp",0],["2¼ cups","cocoa powder","","¾ cup",0],["1½ cups","all-purpose flour","","½ cup",0],["1½ tsp","baking powder","","½ tsp",1],["¾ tsp","salt","","¼ tsp",0],["","flaky salt","for the top","",0]]},"3|metric":{"f":3,"w":["LEAVENING_EXTREME"],"i":[["425 g","unsalted butter","melted","10 tbsp",0],["745 g","granulated sugar","","1¼ cups",0],["6 eggs","","","2",0],["15 ml","vanilla extract","","1 tsp",0],["190 g","cocoa powder","","¾ cup",0],["180 g","all-purpose flour","","½ cup",0],["6 g","baking powder","","½ tsp",1],["3.5 ml","salt","","¼ tsp",0],["","flaky salt","for the top","",0]]},"0.5|us":{"f":0.5,"w":[],"i":[["¼ cup + 1 tbsp","unsalted butter","melted","10 tbsp",0],["½ cup + 2 tbsp","granulated sugar","","1¼ cups",0],["1 egg","","","2",0],["½ tsp","vanilla extract","","1 tsp",0],["⅓ cup + 2 tsp","cocoa powder","","¾ cup",0],["¼ cup","all-purpose flour","","½ cup",0],["¼ tsp","baking powder","","½ tsp",0],["⅛ tsp","salt","","¼ tsp",0],["","flaky salt","for the top","",0]]},"0.5|metric":{"f":0.5,"w":[],"i":[["71 g","unsalted butter","melted","10 tbsp",0],["125 g","granulated sugar","","1¼ cups",0],["1 egg","","","2",0],["2.5 ml","vanilla extract","","1 tsp",0],["31 g","cocoa powder","","¾ cup",0],["30 g","all-purpose flour","","½ cup",0],["1 g","baking powder","","½ tsp",0],["0.5 ml","salt","","¼ tsp",0],["","flaky salt","for the top","",0]]},"pan|us":{"f":1.84,"w":["SHAPE_CHANGE","BAKE_TIME_CHANGES"],"i":[["1⅛ cups","unsalted butter","melted","10 tbsp",0],["2⅓ cups","granulated sugar","","1¼ cups",0],["4 eggs","","","2",0],["1¾ tsp","vanilla extract","","1 tsp",0],["1⅓ cups","cocoa powder","","¾ cup",0],["¾ cup + 2½ tbsp","all-purpose flour","","½ cup",0],["1 tsp","baking powder","","½ tsp",0],["½ tsp","salt","","¼ tsp",0],["","flaky salt","for the top","",0]]},"pan|metric":{"f":1.84,"w":["SHAPE_CHANGE","BAKE_TIME_CHANGES"],"i":[["260 g","unsalted butter","melted","10 tbsp",0],["455 g","granulated sugar","","1¼ cups",0],["4 eggs","","","2",0],["9 ml","vanilla extract","","1 tsp",0],["115 g","cocoa powder","","¾ cup",0],["110 g","all-purpose flour","","½ cup",0],["3.5 g","baking powder","","½ tsp",0],["2.5 ml","salt","","¼ tsp",0],["","flaky salt","for the top","",0]]}};
+const CHIPS = [["0.5", "½×"], ["1", "1×"], ["2", "2×"], ["3", "3×"]];
+class Component extends DCLogic {
+  state = { k: "pan", units: "us", sheet: false };
+  renderVals() {
+    const s = this.state;
+    const accent = this.props.accent ?? "#2B5797";
+    const r = D[s.k + "|" + s.units];
+    const set = (p) => () => this.setState(p);
+    const chips = CHIPS.map(([k, label]) => ({ label, active: s.k === k, inactive: s.k !== k, pick: set({ k, sheet: false }) }));
+    const items = r.i.map(([amount, name, prep, orig, leaven]) => ({
+      amount, name: name || "", prep, hasPrep: !!prep, orig, hasOrig: !!orig, leaven: !!leaven,
+    }));
+    const notes = [];
+    if (r.w.includes("SHAPE_CHANGE")) notes.push({ text: "Round → rectangle changes the bake time. Start checking early." });
+    if (r.w.includes("LEAVENING_EXTREME")) notes.push({ text: "Baking powder doesn’t always scale past 2×. Consider two batches." });
+    const pan = s.k === "pan";
+    const seg = (on) => "height: 38px; min-width: 62px; padding: 0 10px; border: 0; font: 500 14px 'IBM Plex Mono', monospace; cursor: pointer; " +
+      (on ? `background: ${accent}; color: #FFFFFF` : "background: #FFFFFF; color: #1A2330");
+    const opt = (on) => "padding: 8px; border-radius: 2px; font: 500 14px 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #1A2330; background: #FFFFFF; " +
+      (on ? `border: 2px solid ${accent}` : "border: 1px solid #9FB0C2");
+    return {
+      accent, chips, items, notes, hasNotes: notes.length > 0, factor: r.f,
+      panActive: pan, panInactive: !pan,
+      meta: s.k === "1" ? "yield 12 sq · pan 9 in round" : `yield ≈${Math.round(12 * r.f)} sq · pan ${pan ? "9×13 in" : "9 in round"}`,
+      us: s.units === "us", metric: s.units === "metric",
+      usStyle: seg(s.units === "us"), metricStyle: seg(s.units === "metric"),
+      setUS: set({ units: "us" }), setMetric: set({ units: "metric" }),
+      scaled: !(s.k === "1" && s.units === "us"), reset: set({ k: "1", units: "us" }),
+      sheet: s.sheet, openSheet: set({ sheet: true }), closeSheet: set({ sheet: false }),
+      pickPan: set({ k: "pan", sheet: false }), pickRound: set({ k: "1", sheet: false }),
+      roundStyle: opt(!pan), rectStyle: opt(pan),
+      oven: s.units === "us" ? "350 °F" : "175 °C",
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Screen · Import review (E)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&amp;family=Shippori+Mincho:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2A2622}
+.grain{background-color:#E7E0D3;background-image:radial-gradient(rgba(42,38,34,.06) 1px,transparent 1.2px),radial-gradient(rgba(255,255,255,.35) 1px,transparent 1.4px);background-size:7px 7px,11px 11px;background-position:0 0,3px 5px}
+.scroll::-webkit-scrollbar{display:none}
+.mono{font-family:'DM Mono',monospace}
+button{font-family:'DM Sans',sans-serif;color:#2A2622;cursor:pointer}
+textarea{font-family:'DM Sans',sans-serif;color:#2A2622}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F3EFE7; color: #2A2622; font-family: 'DM Sans', system-ui, sans-serif">
+<div class="scroll" style="height: 844px; overflow-y: auto; scrollbar-width: none; padding: 12px 24px 120px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px">
+
+<div style="display: flex; justify-content: space-between; align-items: center">
+<a href="WfList.dc.html" style="min-height: 44px; display: flex; align-items: center; gap: 4px; font-size: 15px; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>Cancel</a>
+<span style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #6A6158">Import</span>
+</div>
+
+<div style="height: 46px; display: flex; align-items: center; gap: 8px; padding: 0 16px; background: #FBF9F4; border: 1px solid #CFC6B8; border-radius: 23px">
+<span class="mono" style="font-size: 12.5px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">example.com/lemon-olive-oil-cake</span>
+<span style="{{fetchStyle}}">{{fetchState}}</span>
+</div>
+
+<sc-if value="{{failed}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; gap: 10px; align-items: flex-start; color: #8F4329; font-size: 14px; line-height: 1.45; padding: 4px 0 8px; border-bottom: 1px solid #DDD5C8"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="flex: none; margin-top: 1px" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span>Couldn’t read a recipe from that page. Some sites block apps, or have no recipe data.</span></div>
+<h2 style="margin: 6px 0 0; font-family: 'Shippori Mincho', serif; font-weight: 500; font-size: 22px"><label for="paste">Paste the text instead</label></h2>
+<textarea id="paste" rows="10" placeholder="Copy the ingredients and method from the page, then paste them here." style="padding: 12px 14px; background: #FBF9F4; border: 1px solid #CFC6B8; border-radius: 12px; font-size: 15px; line-height: 1.5; resize: none; outline: none"></textarea>
+<button onClick="{{fromPaste}}" style="height: 48px; border: 0; border-radius: 24px; background: #56633F; color: #FBF9F4; font-size: 15px; font-weight: 500">Read pasted text</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ok}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; gap: 14px; align-items: center; padding-bottom: 16px; border-bottom: 1px solid #DDD5C8">
+<div class="grain" style="width: 76px; height: 76px; flex: none; border-radius: 4px 14px 6px 12px"></div>
+<div style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
+<span style="font-family: 'Shippori Mincho', serif; font-weight: 600; font-size: 20px; line-height: 1.25">Lemon olive oil cake</span>
+<span style="font-size: 13px; color: #6A6158">From example.com · 8 slices</span>
+<span style="font-size: 12px; color: #6A6158; line-height: 1.4">The photo stays on their site, and the credit stays with the recipe.</span>
+</div>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<h2 style="margin: 0; font-family: 'Shippori Mincho', serif; font-weight: 500; font-size: 20px">Check the ingredients</h2>
+<span style="{{countStyle}}">{{needsCount}}</span>
+</div>
+
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="7">
+<div style="{{l.boxStyle}}">
+<sc-if value="{{l.low}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; justify-content: space-between; font-size: 12px; color: #8F4329; margin-bottom: 6px"><span style="font-weight: 500">Check this one</span><span class="mono">{{l.conf}}</span></div>
+</sc-if>
+<span class="mono" style="display: block; font-size: 12px; color: #6A6158; margin-bottom: 7px">{{l.raw}}</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{l.chips}}" as="c" hint-placeholder-count="3">
+<span style="{{c.style}}">{{c.text}}</span>
+</sc-for>
+</div>
+<sc-if value="{{l.hasFix}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; gap: 10px; margin-top: 10px">
+<span style="font-size: 13px; line-height: 1.4; flex: 1">{{l.fixText}}</span>
+<button onClick="{{l.onFix}}" style="height: 40px; padding: 0 16px; border: 1px solid #56633F; border-radius: 20px; background: transparent; color: #56633F; font-size: 14px; font-weight: 500; white-space: nowrap">{{l.fixLabel}}</button>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-top: 1px solid #DDD5C8; border-bottom: 1px solid #DDD5C8">
+<span style="font-family: 'Shippori Mincho', serif; font-weight: 500; font-size: 18px">Method <span class="mono" style="font-size: 13px; color: #6A6158">· 5 steps</span></span><span style="font-size: 13px; color: #6A6158">Looks fine. Show</span>
+</div>
+</sc-if>
+</div>
+
+<sc-if value="{{ok}}" hint-placeholder-val="{{true}}">
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 24px 20px; background: #FBF9F4; border-top: 1px solid #DDD5C8; display: flex; align-items: center; gap: 14px">
+<span style="font-size: 13px; line-height: 1.4; color: #6A6158; flex: 1">{{barText}}</span>
+<a href="WfRecipe.dc.html" style="height: 46px; padding: 0 24px; display: flex; align-items: center; border-radius: 23px; background: #56633F; color: #FBF9F4; font-size: 15px; font-weight: 500; text-decoration: none">Import</a>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"failed":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+const CH = "min-height: 32px; padding: 0 11px; border-radius: 16px; font-size: 13.5px; display: inline-flex; align-items: center; ";
+const S = {
+  qty: CH + "border: 1px solid #CFC6B8; background: #FBF9F4; font-family: 'DM Mono', monospace; font-weight: 500;",
+  unit: CH + "border: 1px solid #CFC6B8; background: #FBF9F4;",
+  ok: CH + "border: 1px solid #56633F; background: #E8EBE0;",
+  miss: CH + "border: 1px dashed #8F4329; background: #FBF9F4; color: #8F4329;",
+  prep: CH + "border: 1px solid transparent; color: #6A6158; font-style: italic;",
+};
+const LINES = [
+  { raw: "1¾ cups (210g) all-purpose flour", conf: 0.96, chips: [["1¾", "qty"], ["cups", "unit"], ["all-purpose flour ✓", "ok"]] },
+  { raw: "1 cup granulated sugar", conf: 0.97, chips: [["1", "qty"], ["cup", "unit"], ["granulated sugar ✓", "ok"]] },
+  { raw: "3 large eggs, room temperature", conf: 0.94, chips: [["3", "qty"], ["large eggs ✓", "ok"], ["room temperature", "prep"]] },
+  { raw: "¾ cup extra-virgin olive oil", conf: 0.88, chips: [["¾", "qty"], ["cup", "unit"], ["olive oil ✓", "ok"]] },
+  { raw: "1 stick butter, softened", conf: 0.52, chips: [["1", "qty"], ["stick ?", "miss"], ["unsalted butter ✓", "ok"], ["softened", "prep"]],
+    fix: { text: "“stick” isn’t a unit we use. 1 US stick of butter = 4 oz.", label: "Use 4 oz", chips: [["4", "qty"], ["oz", "unit"], ["unsalted butter ✓", "ok"], ["softened", "prep"]] } },
+  { raw: "Zest of 2 lemons", conf: 0.61, chips: [["2", "qty"], ["lemons ✓", "ok"], ["zested", "prep"]],
+    fix: { text: "Read as 2 lemons, zested. Is that right?", label: "Looks right", chips: [["2", "qty"], ["lemons ✓", "ok"], ["zested", "prep"]] } },
+  { raw: "Pinch of flaky salt", conf: 0.74, chips: [["1", "qty"], ["pinch", "unit"], ["flaky salt ✓", "ok"]],
+    fix: { text: "A pinch stays a pinch when you scale or convert.", label: "Keep", chips: [["1", "qty"], ["pinch", "unit"], ["flaky salt ✓", "ok"]] } },
+];
+class Component extends DCLogic {
+  state = { fixed: {}, pasted: false };
+  renderVals() {
+    const failed = (this.props.failed ?? false) && !this.state.pasted;
+    const fixed = this.state.fixed;
+    const lines = LINES.map((l, i) => {
+      const low = l.conf < 0.8 && !fixed[i];
+      return {
+        raw: l.raw, conf: l.conf.toFixed(2), low,
+        chips: (fixed[i] ? l.fix.chips : l.chips).map(([text, kind]) => ({ text, style: S[kind] })),
+        hasFix: low && !!l.fix, fixText: l.fix?.text ?? "", fixLabel: l.fix?.label ?? "",
+        onFix: () => this.setState({ fixed: { ...fixed, [i]: true } }),
+        boxStyle: "padding: 12px 0; border-bottom: 1px solid #E5DED2;" + (low ? " background: #F6ECE6; margin: 0 -12px; padding: 12px; border-left: 2px solid #8F4329;" : ""),
+      };
+    });
+    const left = lines.filter((l) => l.low).length;
+    return {
+      failed, ok: !failed, lines,
+      fetchState: failed ? "Failed" : this.state.pasted ? "Pasted" : "Read",
+      fetchStyle: "font-size: 13px; font-weight: 500; color: " + (failed ? "#8F4329" : "#56633F"),
+      needsCount: left ? left + " to check" : "All checked",
+      countStyle: "font-size: 13px; color: " + (left ? "#8F4329" : "#56633F"),
+      barText: left ? left + " lines still flagged. You can import now and fix them later." : "Saved as version 1, with the source link.",
+      fromPaste: () => this.setState({ pasted: true }),
+    };
+  }
+}
+</script>
+</body>
+</html>

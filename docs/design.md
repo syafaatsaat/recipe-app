@@ -46,6 +46,8 @@
 3. **Base dimensions:** volume in **ml**, mass in **g**, length in **cm**. Display converts to the chosen system.
 4. **`raw_text` is kept on every imported ingredient line.** The parser will be wrong sometimes, and the user needs to see the source while fixing it.
 5. **Scale state lives in the URL** (`?mode=pan&pan=9x13&units=metric`). It's shareable, survives refresh, and needs no table. It only gets persisted in cook logs.
+6. **"Stick" of butter is converted at parse time to oz** (decided 2026-11-25). `stick`/`sticks` before butter or margarine becomes `4 oz` per stick ("1½ sticks butter" → 6 oz), stored as `unit_code = 'oz'`, with `raw_text` keeping the original words. It is **not** a `UNIT_CODES` entry, so there's no schema change. Before any other ingredient, "stick" is an unknown unit: low confidence, flagged on the review screen. Because oz is mass, the US view shows oz/lb (rule 3) and Metric shows grams with no density needed: 4 oz → **115 g**, 8 oz → 225 g (checked against `render()`). Built in M5 with a parser test.
+7. **Users can add their own ingredients** (decided 2026-11-25). When a line doesn't match the catalog, the editor and import review offer "Add to my ingredients": an `ingredients` row with the user's `owner_id` (already allowed by schema and RLS). Density is optional. The form asks for "weight of 1 cup in grams", the friendlier question, and stores `g ÷ 236.588` as `density_g_per_ml`. Without a density the line still scales and converts within its own dimension, but never volume↔mass. Built in M3 (editor) and M5 (import review).
 
 ## 4. Schema (Postgres)
 
@@ -176,7 +178,7 @@ These settle what the pipeline above left open. `lib/culinary/` tests encode eve
 
 ## 6. Build order
 1. Domain module plus tests (units, density seed, pan math, rounding). This has no UI dependency, so it can start before any design work.
-2. **Design pass 1: UX wireframes (½–1 day, low-fi).** Cover the 4 screens that drive structure: recipe view with scale/unit controls and the "orig." display, structured ingredient editor, import review/fix, and recipe list. Do it here because these screens decide component boundaries and the editor's data flow. Pick a shadcn theme, type scale and colour tokens. Skip pixel polish.
+2. ✅ **Done 2026-11-25, see §8.** **Design pass 1: UX wireframes (½–1 day, low-fi).** Cover the 4 screens that drive structure: recipe view with scale/unit controls and the "orig." display, structured ingredient editor, import review/fix, and recipe list. Do it here because these screens decide component boundaries and the editor's data flow. Pick a shadcn theme, type scale and colour tokens. Skip pixel polish.
 3. Schema, auth, manual recipe CRUD with structured ingredient editor. Add the daily Supabase keep-alive cron (Vercel Cron hitting a route that runs `select 1`) as soon as the project is deployed.
 4. Render with scaling, unit toggle and URL state.
 5. Importer: JSON-LD, then the ingredient-line parser, then the review/fix screen (low-confidence lines highlighted), then the LLM fallback.
@@ -218,3 +220,67 @@ Recheck these before relying on them. Limits change.
 | @types/node | 24.19.2 | Unverified: match it to the Node version Vercel runs when deploying (local dev is Node 26). |
 
 Not installed yet (added at their milestone): cheerio 1.2.0, shadcn 4.23.0, @playwright/test 1.65.1, @supabase/supabase-js 2.119.2, @supabase/ssr 0.12.7, @anthropic-ai/sdk 1.14.0. Re-check versions when installing.
+
+## 8. Design (pass 1, decided 2026-11-25)
+
+The source is the Design canvas in `docs/design/canvas/`, with a live private copy at https://claude.ai/artifact/GR9Agyh1n1Wb99F4EZ3NEz. Page "Style directions" has the five looks that were compared; page "Screens (style E)" has the four approved screens. Every recipe amount on the canvas is real `render()` output.
+
+### Direction: E, "Japandi with notebook numbers"
+Five directions were tried on the same brownie recipe: A Japandi + wabi-sabi, B mid-century riso, C test-kitchen notebook, D recipe-box cottage, and E. **E won.** It takes A's calm (warm off-white, one muted accent, thin rules, lots of space) and adds C's precision where it matters: monospaced amounts so fractions line up, a large ×factor readout, numbered steps, and pan diagrams with their areas in the scale sheet. Texture (paper grain) appears only on photo placeholders and empty states.
+
+### Colour tokens → shadcn variables
+Contrast is measured against `--background` (#F3EFE7) unless noted. All text pairs pass WCAG AA (4.5:1).
+
+| Role | Hex | shadcn variable | Contrast |
+|---|---|---|---|
+| Page background | #F3EFE7 | `--background` | |
+| Surface: cards, sheets, bars, inputs | #FBF9F4 | `--card`, `--popover` | |
+| Text | #2A2622 | `--foreground`, `--card-foreground` | 13.1:1 (14.3 on surface) |
+| Muted text | #6A6158 | `--muted-foreground` | 5.3:1 (5.8 on surface) |
+| Accent (matcha): primary buttons, active chips, ×factor, step numbers | #56633F | `--primary`, `--ring` | 5.6:1 |
+| Text on accent | #FBF9F4 | `--primary-foreground` | 6.1:1 |
+| Warning (clay): bake/leavening notes, unmatched lines, delete | #8F4329 | `--destructive` | 6.1:1 (6.0 on its tint) |
+| Warning tint: row behind a flagged line | #F6ECE6 | (custom `--warning-muted`) | |
+| Matched-chip tint | #E8EBE0 | `--accent` | text 12.4:1 |
+| Placeholder fill (grain base) | #E7E0D3 | `--muted` | |
+| Divider rules | #DDD5C8 / #E5DED2 | `--border` | decorative only |
+| **Control outline**: inputs, outline buttons, chips | **#928778** | `--input` | 3.07:1 |
+
+**Fix found while recording this:** the canvas draws control outlines in #CFC6B8, which is only 1.47:1. WCAG 1.4.11 asks for 3:1 on the boundary of an input or button. The app uses #928778 for `--input`; the canvas wasn't redrawn for it.
+
+Dark mode isn't designed yet (pass 2).
+
+### Type
+All three fonts are on Google Fonts under the SIL Open Font License, loaded with `next/font/google` (self-hosted at build time, no runtime request to Google).
+
+| Use | Font | Weights | Sizes (px) |
+|---|---|---|---|
+| Recipe title | Shippori Mincho | 600 | 30 |
+| Section headings, sheet titles | Shippori Mincho | 500 | 20–22 |
+| Card titles in the list | Shippori Mincho | 500 | 18 |
+| Body, labels, buttons | DM Sans | 400 / 500 | 15 (labels 13, meta 12–13) |
+| Amounts, ×factor, step numbers, "orig.", chip quantities | DM Mono | 500 / 400 | 14.5 amounts, 22 factor, 12 "orig." |
+| Eyebrow labels ("SCALE") | DM Sans | 400, uppercase, +0.12em | 12 |
+
+### Shape and spacing
+- Phone first. Designed at 390 × 844, with 24 px side padding.
+- Pills (radius = height ÷ 2) for buttons, chips and segmented controls. 10–12 px radius for inputs and option cards. 22 px top corners on bottom sheets. Photo placeholders use slightly uneven radii (6/22/8/18) as the one wabi-sabi touch.
+- Touch targets are at least 44 px tall.
+- Lists are separated by 1 px rules, not boxed cards.
+
+### The four screens and their components
+| Screen | Components | State |
+|---|---|---|
+| **Recipe list** | `SearchField`, `NewRecipeMenu` (import link / paste text / write), `RecipeCard`, `EmptyState` (the same three ways in) | Search text in the URL (`?q=`) |
+| **Recipe view** | `ScaleBar` (½× 1× 2× 3× chips, "More", ×factor readout), `UnitToggle`, `WarningList`, `IngredientLine` (amount, name, prep, "orig." label, leavening note), `ScaleSheet` (Factor / Yield / Pan tabs; `PanPicker` with `PanDiagram`), `RecipeMenu` | Scale and units in the URL (`lib/culinary/url.ts`); sheet and menu open in component state |
+| **Ingredient editor** | `RecipeMetaForm`, `SectionList` (drag to reorder), `ParsedLineEditor` (type a line, see chips live), `ChipPicker` (unit / ingredient), `AddIngredientForm` (§3.7), `SaveBar` | Draft in component state. Save writes the normalized rows plus a new version snapshot. |
+| **Import review** | `SourceCard` (title, site, attribution; the photo stays linked), `ReviewLine` (`raw_text` above the chips; confidence < 0.8 highlighted with a one-tap fix), `PasteFallback`, `ImportBar` | `import_jobs` row on the server; edits in component state until Import |
+
+Decisions shown in the screens:
+- When the chosen pan is active, the "More" chip shows its name ("9×13").
+- **Reset to original** sits next to the unit toggle and only changes the view. **Version history** lives in the ⋯ menu, because it changes data (§2).
+- Bake-time and leavening warnings sit between the scale bar and the ingredients, in clay with an icon, never as a modal.
+- Import never blocks on flagged lines: "You can import now and fix them later."
+
+### Not decided yet (design pass 2, §6 step 7)
+Dark mode, tablet and desktop layouts, the landing/demo page, loading skeletons, cook mode, and photo treatment once real photos exist.
