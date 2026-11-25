@@ -48,6 +48,11 @@
 5. **Scale state lives in the URL** (`?mode=pan&pan=9x13&units=metric`). It's shareable, survives refresh, and needs no table. It only gets persisted in cook logs.
 6. **"Stick" of butter is converted at parse time to oz** (decided 2026-11-25). `stick`/`sticks` before butter or margarine becomes `4 oz` per stick ("1½ sticks butter" → 6 oz), stored as `unit_code = 'oz'`, with `raw_text` keeping the original words. It is **not** a `UNIT_CODES` entry, so there's no schema change. Before any other ingredient, "stick" is an unknown unit: low confidence, flagged on the review screen. Because oz is mass, the US view shows oz/lb (rule 3) and Metric shows grams with no density needed: 4 oz → **115 g**, 8 oz → 225 g (checked against `render()`). Built in M5 with a parser test.
 7. **Users can add their own ingredients** (decided 2026-11-25). When a line doesn't match the catalog, the editor and import review offer "Add to my ingredients": an `ingredients` row with the user's `owner_id` (already allowed by schema and RLS). Density is optional. The form asks for "weight of 1 cup in grams", the friendlier question, and stores `g ÷ 236.588` as `density_g_per_ml`. Without a density the line still scales and converts within its own dimension, but never volume↔mass. Built in M3 (editor) and M5 (import review).
+8. **Auth: email + password** (decided 2026-11-25; easy to test, and the public demo account is just a known login). Supabase Auth via `@supabase/ssr`:
+   - `proxy.ts` (Next 16's renamed middleware) refreshes the session cookie on every request with `getClaims()` and does optimistic redirects only.
+   - **The security boundary is `lib/auth.ts`** (`getUser()` / `requireUserId()`, which verify the JWT with `getClaims()`; never `getSession()` on the server) **plus RLS**. Every page, Server Action and route that touches user data calls it.
+   - `getUser()` calls `await connection()` first: `getClaims()` reads the clock, which Next forbids while prerendering.
+   - Email links (sign-up confirmation, password reset) land on `/auth/confirm`, which accepts both the PKCE `?code=` and the `?token_hash=&type=` styles.
 
 ## 4. Schema (Postgres)
 
@@ -70,6 +75,10 @@ Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.t
 - **Negative values were accepted** (quantities, pan dimensions, yields, times, densities). Positivity checks were added, `parse_confidence` is limited to 0–1, and `quantity_max` now requires `quantity`.
 - **Missing triggers:** profile-on-signup (`security definer`, empty `search_path`) and `updated_at`.
 - **11 unindexed foreign keys.** All are now indexed.
+
+**Snapshot format:** `{ schema: 1, draft: RecipeDraft }` (`lib/recipes/schema.ts`). `RecipeDraft` is also the editor's data and the save action's input, so restoring a version is one parse. Changing `RecipeDraft` means bumping `schema` and keeping a reader for old snapshots.
+
+**Sections:** a recipe with one untitled section stores its lines with `section_id` null and no `recipe_sections` row.
 
 **Why snapshots and not diffs for versions:** recipes are small (a few KB), and restore becomes a single read. It also doubles as an immutable "original import" (v1). The normalized tables stay the source of truth for queries. The snapshot is only for history and restore.
 
@@ -179,7 +188,7 @@ These settle what the pipeline above left open. `lib/culinary/` tests encode eve
 ## 6. Build order
 1. Domain module plus tests (units, density seed, pan math, rounding). This has no UI dependency, so it can start before any design work.
 2. ✅ **Done 2026-11-25, see §8.** **Design pass 1: UX wireframes (½–1 day, low-fi).** Cover the 4 screens that drive structure: recipe view with scale/unit controls and the "orig." display, structured ingredient editor, import review/fix, and recipe list. Do it here because these screens decide component boundaries and the editor's data flow. Pick a shadcn theme, type scale and colour tokens. Skip pixel polish.
-3. Schema, auth, manual recipe CRUD with structured ingredient editor. Add the daily Supabase keep-alive cron (Vercel Cron hitting a route that runs `select 1`) as soon as the project is deployed.
+3. ✅ **Done 2026-11-25 (M3).** Schema, auth, manual recipe CRUD with structured ingredient editor. Add the daily Supabase keep-alive cron (Vercel Cron hitting a route that runs `select 1`) as soon as the project is deployed. (Built: `/api/keep-alive` and `vercel.json`, daily at 09:00 UTC; it needs `CRON_SECRET` set in Vercel.)
 4. Render with scaling, unit toggle and URL state.
 5. Importer: JSON-LD, then the ingredient-line parser, then the review/fix screen (low-confidence lines highlighted), then the LLM fallback.
 6. Photo upload (client resize, Storage, cover/per-step).
@@ -217,9 +226,12 @@ Recheck these before relying on them. Limits change.
 | fast-check | 4.11.0 | |
 | supabase (CLI) | 3.3.0 | 3.4.0 was <24 h old and blocked by pnpm's `minimumReleaseAge`. Bump later. |
 | @types/react | 19.3.0 | 19.3.1 was blocked the same way. |
+| @supabase/ssr / @supabase/supabase-js | 0.12.7 / 2.119.2 | Added in M3. |
+| shadcn (CLI + `shadcn/tailwind.css`) | 4.23.0 | radix base, nova preset. Pulled in radix-ui 1.8.1, cmdk 1.1.1, sonner 2.0.8, lucide-react 1.79.0, class-variance-authority 0.7.1, cn 0.5.2 (shadcn's own class merger), tw-animate-css 1.4.0. next-themes was removed (no dark mode yet). Controls were resized to the §8 rules. |
+| @playwright/test | 1.65.1 | Chromium only, phone viewport. |
 | @types/node | 24.19.2 | Unverified: match it to the Node version Vercel runs when deploying (local dev is Node 26). |
 
-Not installed yet (added at their milestone): cheerio 1.2.0, shadcn 4.23.0, @playwright/test 1.65.1, @supabase/supabase-js 2.119.2, @supabase/ssr 0.12.7, @anthropic-ai/sdk 1.14.0. Re-check versions when installing.
+Not installed yet (added at their milestone): cheerio 1.2.0, @anthropic-ai/sdk 1.14.0. Re-check versions when installing.
 
 ## 8. Design (pass 1, decided 2026-11-25)
 
