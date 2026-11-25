@@ -166,7 +166,7 @@ These settle what the pipeline above left open. `lib/culinary/` tests encode eve
 5. **Two parts** ("⅓ cup + 2 tsp", "1 lb + 4 oz") only when the single snapped unit is off by more than 5%. The first part is the largest allowed fraction ≤ the value. The remainder goes through the ladder, limited to smaller units. Never more than 2 parts. Metric and ranges never use two parts.
 6. **Eggs** (the catalog egg, `isEgg`): a remainder of ¼–¾ becomes whole eggs plus beaten egg (≈1 tbsp per ¼ egg, shown in US fractions of tbsp/tsp, or grams via `each_g` in metric). Otherwise round to the nearest whole. Never "0 eggs": below ¼ egg, show beaten egg only.
 7. **Other `count_round` items** round to the nearest ½ ("2½ bananas").
-8. **Tiny amounts:** a value that snaps to 0 shows as "pinch" (US) or "<0.5 g" / "<0.5 ml" (metric), never "0".
+8. **Tiny amounts:** a value that snaps to 0 shows as "pinch" (US) or "<0.5 g" / "<0.5 ml" (metric), never "0". Counts without a unit (linear) use US fractions and bottom out at ⅛ ("⅛ onion").
 9. **Factor 1 in the source unit system** shows quantities exactly as entered (no re-laddering), so Reset is the true original. The source system is the majority system of the recipe's entered units.
 10. **`to_taste` / `fixed`** skip scaling but are still unit-converted.
 11. **Ranges** scale both ends and share one unit, picked from the larger end.
