@@ -52,10 +52,15 @@ export const US_MASS_LADDER: readonly Rung[] = [
   { unit: "lb", upTo: Infinity },
 ];
 
+/** Rule 5: the second part of a two-part amount uses whole or ½ units only. */
+export function snapHalf(v: number): number {
+  return Math.round(v * 2) / 2;
+}
+
 /** Index of the rung whose snapped value stays below its upTo. Snap first, then pick (2.95 tsp → 3 tsp → 1 tbsp). */
-function pickRung(base: number, ladder: readonly Rung[]): number {
+function pickRung(base: number, ladder: readonly Rung[], snap: (v: number) => number = snapUS): number {
   for (let i = 0; i < ladder.length; i++) {
-    if (snapUS(fromBase(base, ladder[i].unit)) < ladder[i].upTo - EPS) return i;
+    if (snap(fromBase(base, ladder[i].unit)) < ladder[i].upTo - EPS) return i;
   }
   /* c8 ignore next */
   return ladder.length - 1; // unreachable: the last rung is unbounded
@@ -80,8 +85,8 @@ export function usParts(base: number, ladder: readonly Rung[], allowTwoPart = tr
   const first = floorUS(v);
   const remBase = base - toBase(first, unit);
   const smaller = ladder.slice(0, i);
-  const j = pickRung(remBase, smaller);
-  const remSnap = snapUS(fromBase(remBase, smaller[j].unit));
+  const j = pickRung(remBase, smaller, snapHalf);
+  const remSnap = snapHalf(fromBase(remBase, smaller[j].unit));
   // remainder too small to show, or it climbed to the size of the first unit: keep one part
   if (remSnap === 0 || remSnap >= smaller[j].upTo - EPS) return single;
   return [
@@ -111,16 +116,22 @@ export function snapCount(v: number): number {
 
 /**
  * Rule 6: eggs. Returns whole eggs and the beaten-egg remainder as a fraction of an egg.
- * remainder ¼–¾ → beaten egg; otherwise round to nearest whole; below ¼ egg total → beaten only.
+ * remainder ¼–¾ → beaten egg; otherwise round to nearest whole; below ¼ egg total → beaten only;
+ * 3 or more whole eggs → always the nearest whole egg.
  */
 export function splitEggs(q: number): { whole: number; beaten: number } {
   const whole = Math.floor(q + EPS);
   const r = q - whole;
+  // 3 or more whole eggs: nearest whole egg, no beaten remainder (.5 rounds up)
+  if (whole >= EGG_WHOLE_ONLY_FROM) return { whole: Math.floor(q + 0.5 + EPS), beaten: 0 };
   if (whole === 0 && r < 0.75 + EPS) return { whole: 0, beaten: r };
   if (r < 0.25 - EPS) return { whole, beaten: 0 };
   if (r > 0.75 + EPS) return { whole: whole + 1, beaten: 0 };
   return { whole, beaten: r };
 }
+
+/** From this many whole eggs up, eggs round to whole (rule 6). */
+export const EGG_WHOLE_ONLY_FROM = 3;
 
 /** ≈1 tbsp of beaten egg per ¼ egg. */
 export const BEATEN_EGG_ML_PER_EGG = 4 * UNITS.tbsp.toBase;

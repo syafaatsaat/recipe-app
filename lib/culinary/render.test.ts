@@ -183,6 +183,14 @@ describe("recipe-level output", () => {
     }
   });
 
+  it("9 in round → 9×13: 2 eggs and ½ cup flour read as a cook would measure them", () => {
+    const r = render(recipe([eggs(2), flour(0.5)], { pan: PAN_9_ROUND }), { mode: "pan", targetPanId: PAN_9X13.id, useDepth: false }, "us", { pans: [PAN_9X13] });
+    expect(r.ok && r.ingredients.map((i) => i.amount)).toEqual([
+      "4 eggs",           // 3.68 eggs: 3+ whole eggs round to the nearest whole (was "3 eggs + 2¾ tbsp beaten egg")
+      "¾ cup + 2½ tbsp",  // 0.92 cup: second part in whole/½ units (was "¾ cup + 2¾ tbsp")
+    ]);
+  });
+
   it("errors pass through", () => {
     expect(render(recipe([flour(1)]), { mode: "yield", targetQty: 2 }, "us")).toEqual({ ok: false, error: "NO_YIELD" });
   });
