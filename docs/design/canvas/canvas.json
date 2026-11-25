@@ -1,0 +1,232 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-25T08:30:00Z"
+  },
+  "title": "Recipe app: style directions",
+  "launch": {
+    "view": "canvas",
+    "page": "wireframes"
+  },
+  "pages": [
+    {
+      "id": "styles",
+      "name": "Style directions"
+    },
+    {
+      "id": "wireframes",
+      "name": "Screens (style E)"
+    }
+  ],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "A · Japandi + wabi-sabi",
+      "is_interactive": true,
+      "radius": 28,
+      "page": "styles"
+    },
+    "MidCentury.dc.html": {
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "B · Mid-century riso",
+      "is_interactive": true,
+      "radius": 28,
+      "page": "styles"
+    },
+    "Notebook.dc.html": {
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "C · Test-kitchen notebook",
+      "is_interactive": true,
+      "radius": 28,
+      "page": "styles"
+    },
+    "Cottage.dc.html": {
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "D · Recipe-box cottage",
+      "is_interactive": true,
+      "radius": 28,
+      "page": "styles"
+    },
+    "Mix.dc.html": {
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "E · Japandi + notebook numbers (chosen)",
+      "is_interactive": true,
+      "radius": 28,
+      "page": "styles"
+    },
+    "WfList.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "1 · Recipe list (E)",
+      "is_interactive": true,
+      "radius": 28,
+      "page": "wireframes"
+    },
+    "WfRecipe.dc.html": {
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "2 · Recipe view + scale sheet (E)",
+      "is_interactive": true,
+      "radius": 28,
+      "page": "wireframes"
+    },
+    "WfEditor.dc.html": {
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "3 · Ingredient editor (E)",
+      "is_interactive": true,
+      "radius": 28,
+      "page": "wireframes"
+    },
+    "WfImport.dc.html": {
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "4 · Import review (E)",
+      "is_interactive": true,
+      "radius": 28,
+      "page": "wireframes"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "MidCentury.dc.html",
+    "Notebook.dc.html",
+    "Cottage.dc.html",
+    "Mix.dc.html",
+    "WfList.dc.html",
+    "WfRecipe.dc.html",
+    "WfEditor.dc.html",
+    "WfImport.dc.html"
+  ],
+  "notes": {
+    "heading": {
+      "x": 0,
+      "y": -300,
+      "text": "Style directions · recipe view, real lib/culinary output",
+      "kind": "title1",
+      "maxW": 2270,
+      "page": "styles"
+    },
+    "intro": {
+      "x": 0,
+      "y": -190,
+      "w": 2270,
+      "page": "styles",
+      "text": "Same brownie recipe in four looks, plus E: A’s calm with C’s numbers and pan diagrams (chosen). Each opens scaled from a 9 in round to a 9×13 pan. Press Play: the ½× 1× 2× 3× chips, US / Metric, Reset and More (pan picker) all work. Every amount, “orig.” label and warning is real render() output.",
+      "size": "m"
+    },
+    "tokA": {
+      "x": 0,
+      "y": 964,
+      "w": 390,
+      "fill": "gray",
+      "page": "styles",
+      "text": "A · Japandi + wabi-sabi accents\nHeadings: Shippori Mincho\nBody and numbers: DM Sans (tabular)\nbg #F3EFE7 · surface #FBF9F4\ntext #2A2622 · muted #6A6158\naccent matcha #56633F · warning clay #8F4329\nAA: muted 5.3:1 · accent 5.6:1 · warning 6.1:1"
+    },
+    "tokB": {
+      "x": 470,
+      "y": 964,
+      "w": 390,
+      "fill": "gray",
+      "page": "styles",
+      "text": "B · Mid-century, risograph-style\nHeadings and body: Jost\nbg #F5ECD9 · surface #FFF8EA\ntext #1D2A2C · muted #55605F\naccent teal #17605C · mustard #E3A62F (fills only) · warning tomato #A8361C\nAA: muted 5.6:1 · accent 6.2:1 · warning 5.6:1 · text on mustard 6.9:1"
+    },
+    "tokC": {
+      "x": 940,
+      "y": 964,
+      "w": 390,
+      "fill": "gray",
+      "page": "styles",
+      "text": "C · Test-kitchen notebook\nHeadings and body: IBM Plex Sans\nNumbers: IBM Plex Mono\nbg #FAFAF6 grid #DCE5EE · surface #FFFFFF\ntext #1A2330 · muted #566173\naccent pencil blue #2B5797 · warning red #AE2229\nAA: muted 6.0:1 · accent 6.9:1 · warning 6.6:1"
+    },
+    "tokD": {
+      "x": 1410,
+      "y": 964,
+      "w": 390,
+      "fill": "gray",
+      "page": "styles",
+      "text": "D · Recipe-box cottage, restrained\nHeadings: Fraunces · Body: Lora\nQuantities: Courier Prime\nbg #EEEBE1 · card #FFFDF6\ntext #2E2925 · muted #665E57\naccent sage #4F6B52 · rose #C98B8F (decor only) · warning #8A3A2D\nAA: muted 5.3:1 · accent 5.0:1 · warning 6.5:1"
+    },
+    "tokE": {
+      "x": 1880,
+      "y": 964,
+      "w": 390,
+      "fill": "green",
+      "page": "styles",
+      "text": "E · A + C (chosen)\nHeadings: Shippori Mincho · Body: DM Sans\nAmounts, factor, step numbers: DM Mono (same family as DM Sans)\nColours: A’s palette unchanged\nFrom C: ×factor readout, pan diagrams with areas, in A’s thin lines\nGrain only on the photo placeholder"
+    },
+    "wfHeading": {
+      "x": 0,
+      "y": -300,
+      "text": "Screens · phone first, style E",
+      "kind": "title1",
+      "maxW": 1800,
+      "page": "wireframes"
+    },
+    "wfIntro": {
+      "x": 0,
+      "y": -190,
+      "w": 1800,
+      "size": "m",
+      "page": "wireframes",
+      "text": "The four screens in E’s real look (structure approved 2026-11-25). Press Play and tap through: list → recipe → ⋯ → edit; list → New → import. Recipe amounts are real render() output; parser chips on 3 and 4 are hand-written (the parser is M5). Notes below each screen: the components it implies and where its state lives."
+    },
+    "wf1": {
+      "x": 0,
+      "y": 964,
+      "w": 390,
+      "fill": "blue",
+      "page": "wireframes",
+      "text": "Components: SearchField · NewRecipeMenu · RecipeCard · EmptyState\nState: search text in the URL (?q=), so it survives refresh and back.\nEmpty state is the first-run screen: offers the three ways in (import, paste, write). Tweak “empty” to see it."
+    },
+    "wf2": {
+      "x": 470,
+      "y": 964,
+      "w": 390,
+      "fill": "blue",
+      "page": "wireframes",
+      "text": "Components: ScaleBar (chips + ×factor) · UnitToggle · WarningList · IngredientLine (amount, name, prep, orig.) · ScaleSheet (factor / yield / PanPicker with PanDiagram) · RecipeMenu\nURL state: mode, factor, qty, pan, depth, units (lib/culinary/url.ts).\nComponent state: sheet and menu open.\nReset (view) and Version history (data) are deliberately in different places (doc §2)."
+    },
+    "wf3": {
+      "x": 940,
+      "y": 964,
+      "w": 390,
+      "fill": "blue",
+      "page": "wireframes",
+      "text": "Components: RecipeMetaForm · SectionList (drag to reorder) · ParsedLineEditor (text input → chips) · ChipPicker (unit / ingredient) · AddIngredientForm · SaveBar\nState: draft in component state; Save writes the normalized rows + a new version snapshot.\nDecided: an unmatched ingredient can be added to “my ingredients” (ingredients row with owner_id). Weight of 1 cup is optional; given, it’s stored as g ÷ 236.588 = density g/ml. Without it the line scales but never converts to grams."
+    },
+    "wf4": {
+      "x": 1410,
+      "y": 964,
+      "w": 390,
+      "fill": "blue",
+      "page": "wireframes",
+      "text": "Components: SourceCard · ReviewLine (raw_text + chips, confidence < 0.8 highlighted) · PasteFallback · ImportBar\nState: import_jobs row (server) + edits in component state until Import.\nDecided: “stick” of butter converts at parse time to 4 oz per stick (stored unit oz, raw_text keeps “1 stick”). US shows 4 oz, Metric 115 g (render() output)."
+    }
+  },
+  "designSystems": []
+}
