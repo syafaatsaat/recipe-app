@@ -8,8 +8,8 @@
 ## Status
 - [x] **M0: Foundations.** Doc committed, limits and versions verified (doc §7), scaffold with pinned versions, schema validated on local Supabase (pgTAP tests). Merged.
 - [x] **M1: `lib/culinary/`** (units, conversion, pans, rounding, scaling, render, URL state). 186 tests, ≥95% coverage enforced. Display rules: doc §5. Merged.
-- [x] **M2: Design pass 1.** Direction E, colour/type tokens mapped to shadcn variables, four screens and their components: doc §8, canvas in `docs/design/`. Stick→oz and user ingredients decided (doc §3.6–3.7). Awaiting review.
-- [ ] **M3 next:** auth, manual recipe CRUD with the structured ingredient editor (doc §6 step 3). Gets planned when it starts.
+- [x] **M2: Design pass 1.** Direction E, colour/type tokens mapped to shadcn variables, four screens and their components: doc §8, canvas in `docs/design/`. Stick→oz and user ingredients decided (doc §3.6–3.7). Merged.
+- [ ] **M3: auth + manual recipe CRUD** (doc §6 step 3), in progress on `m3-crud`. Email + password sign-in, recipe list/view/editor, user ingredients.
 - Later milestones follow doc §6.
 
 ## Non-negotiable rules
