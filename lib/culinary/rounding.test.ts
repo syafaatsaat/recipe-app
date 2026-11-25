@@ -109,6 +109,20 @@ describe("usParts: volume ladder (rules 2 and 5)", () => {
     expect(usParts(tsp(0.05), US_VOLUME_LADDER)).toEqual([{ kind: "pinch" }]);
   });
 
+  it("the second part snaps to whole or ½ units only (rule 5)", () => {
+    // ½ cup flour × 1.839 (9 in round → 9×13) = 0.9196 cup: ¾ cup + 2.71 tbsp → 2½ tbsp, not 2¾
+    expect(usParts(cup(0.5 * 1.83912), US_VOLUME_LADDER)).toEqual([q(0.75, "cup"), q(2.5, "tbsp")]);
+    // 0.86 cup: ¾ cup + 1.76 tbsp → 2 tbsp
+    expect(usParts(cup(0.86), US_VOLUME_LADDER)).toEqual([q(0.75, "cup"), q(2, "tbsp")]);
+    // a remainder below 1 tbsp goes to tsp: 0.306 cup → ¼ cup + 2.7 tsp → 2½ tsp
+    expect(usParts(cup(0.30625), US_VOLUME_LADDER)).toEqual([q(0.25, "cup"), q(2.5, "tsp")]);
+  });
+
+  it("a remainder that snaps to 0 is dropped, keeping the single snapped amount", () => {
+    // 1.07 tbsp → 1⅛ tbsp (5.1% off) → split: 1 tbsp + 0.21 tsp → ½-snap 0 → keep 1⅛ tbsp
+    expect(usParts(tbsp(1.07), US_VOLUME_LADDER)).toEqual([q(1.125, "tbsp")]);
+  });
+
   it("keeps one part when the remainder rounds away", () => {
     // 1.2 tbsp: snaps 1¼ (4% off) → one part anyway
     expect(usParts(tbsp(1.2), US_VOLUME_LADDER)).toEqual([q(1.25, "tbsp")]);
@@ -135,6 +149,9 @@ describe("splitEggs (rule 6)", () => {
     [0.5, 0, 0.5],
     [0.8, 1, 0],
     [3, 3, 0],
+    [2.68, 2, 0.68], // fewer than 3 whole eggs: beaten remainder still shown
+    // 3 or more whole eggs: always the nearest whole egg
+    [3.4, 3, 0], [3.5, 4, 0], [3.68, 4, 0], [5.3, 5, 0],
   ])("%d → %d whole + %d beaten", (v, whole, beaten) => {
     const r = splitEggs(v);
     expect(r.whole).toBe(whole);
