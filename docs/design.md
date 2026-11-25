@@ -130,7 +130,7 @@ type ScaleState =
 interface ScaleResult {
   factor: number;
   warnings: Warning[];   // 'BAKE_TIME_CHANGES' | 'LEAVENING_EXTREME' | 'SHAPE_CHANGE' | 'DEPTH_UNKNOWN'
-  bakeHint?: string;     // "Shallower pan: start checking ~25% earlier"
+  bakeHint?: { direction: 'shallower' | 'deeper' };  // UI writes the wording
 }
 
 render(recipe, scale: ScaleState, units: UnitSystem): RenderedRecipe  // pure; never mutates
@@ -153,8 +153,26 @@ render(recipe, scale: ScaleState, units: UnitSystem): RenderedRecipe  // pure; n
    - US fractions snap to ⅛ ¼ ⅓ ½ ⅔ ¾.
    - Grams: <10 g to 0.5 g, <100 g to 1 g, <1000 g to 5 g, then 10 g.
    - ml: same steps.
-   - `count_round`: eggs round to the nearest 1. If the remainder is ≥0.25, show it as beaten egg (≈1 tbsp per ¼ egg), e.g. "2 eggs + 1 tbsp beaten egg" (or grams using `each_g`).
-5. Show the original under the scaled value when factor ≠ 1, using a muted "(orig. 1 cup)" label. The **Reset** button sets `ScaleState` to `none` and units to the source system.
+   - `count_round`: eggs round to the nearest 1. If the remainder is ¼–¾, show it as beaten egg (≈1 tbsp per ¼ egg), e.g. "2 eggs + 1 tbsp beaten egg" (or grams using `each_g`).
+5. Show the original under the scaled value whenever the displayed amount differs from what was entered, using a muted "(orig. 1 cup)" label. The **Reset** button sets `ScaleState` to `none` and units to the source system.
+
+### Display rules (decided 2026-11-25)
+These settle what the pipeline above left open. `lib/culinary/` tests encode every rule. Change a rule here first, then its tests.
+
+1. **US fractions:** snap to the nearest of 0 ⅛ ¼ ⅓ ½ ⅔ ¾ 1 (no ⅜, so ⅓ wins between them). Display as glyphs: "1½", "⅓".
+2. **US volume ladder:** tsp below 1 tbsp, tbsp below ¼ cup, then cup. Snap first, then pick the unit, so 2.95 tsp → 3 tsp → **1 tbsp**. No pints/quarts/fl oz in display.
+3. **US mass:** oz below 1 lb, then lb.
+4. **Metric:** g/ml below 1000 (steps: 0.5 below 10, 1 below 100, 5 below 1000), then kg/L at 10 g/10 ml steps shown as decimals with at most 2 places, trailing zeros trimmed ("1.25 kg").
+5. **Two parts** ("⅓ cup + 2 tsp", "1 lb + 4 oz") only when the single snapped unit is off by more than 5%. The first part is the largest allowed fraction ≤ the value. The remainder goes through the ladder, limited to smaller units. Never more than 2 parts. Metric and ranges never use two parts.
+6. **Eggs** (the catalog egg, `isEgg`): a remainder of ¼–¾ becomes whole eggs plus beaten egg (≈1 tbsp per ¼ egg, shown in US fractions of tbsp/tsp, or grams via `each_g` in metric). Otherwise round to the nearest whole. Never "0 eggs": below ¼ egg, show beaten egg only.
+7. **Other `count_round` items** round to the nearest ½ ("2½ bananas").
+8. **Tiny amounts:** a value that snaps to 0 shows as "pinch" (US) or "<0.5 g" / "<0.5 ml" (metric), never "0". Counts without a unit (linear) use US fractions and bottom out at ⅛ ("⅛ onion").
+9. **Factor 1 in the source unit system** shows quantities exactly as entered (no re-laddering), so Reset is the true original. The source system is the majority system of the recipe's entered units.
+10. **`to_taste` / `fixed`** skip scaling but are still unit-converted.
+11. **Ranges** scale both ends and share one unit, picked from the larger end.
+12. **Leavening warning** fires only when the factor is > 2 or < 0.5 (exactly 2× and 0.5× don't warn).
+13. **Factor** must be finite and within 0.01–100.
+14. **Pans:** muffin ↔ non-muffin is unsupported (no reliable cup volume), and so is `other` without `volume_ml`. The UI disables those options. The bake hint is structured (`{ direction: 'shallower' | 'deeper' }`), and the UI writes the wording, with no invented percentages.
 
 ## 6. Build order
 1. Domain module plus tests (units, density seed, pan math, rounding). This has no UI dependency, so it can start before any design work.

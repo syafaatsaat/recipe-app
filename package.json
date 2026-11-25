@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run --project unit",
+    "test": "vitest run --project unit --coverage",
     "test:watch": "vitest --project unit",
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
