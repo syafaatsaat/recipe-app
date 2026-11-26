@@ -2,6 +2,8 @@
 // "Scraping"). Pure: takes the HTML string, does no fetching.
 import * as cheerio from "cheerio";
 import { z } from "zod";
+import { MAX_QUANTITY } from "@/lib/culinary/quantity";
+import { UNIT_CODES } from "@/lib/culinary/units";
 
 export interface ExtractedIngredient {
   /** "For the glaze", or null for the main list */
@@ -11,7 +13,7 @@ export interface ExtractedIngredient {
 
 /** What gets stored in import_jobs.raw_payload, and re-parsed by the review page. */
 export interface ExtractedRecipe {
-  method: "jsonld" | "microdata" | "paste";
+  method: "jsonld" | "microdata" | "paste" | "llm";
   title: string | null;
   description: string | null;
   ingredients: ExtractedIngredient[];
@@ -23,11 +25,25 @@ export interface ExtractedRecipe {
   siteName: string | null;
   /** the page's canonical URL, else the URL that was fetched; null for pasted text */
   url: string | null;
+  /** AI readings of flagged lines, by raw line text (doc §3.11): suggestions, never applied unasked */
+  lineHints?: Record<string, LineHint>;
 }
+
+/** One AI reading of an ingredient line: the parser's fields, from the model (validated in lib/import/llm.ts). */
+export const lineHintSchema = z.object({
+  quantity: z.number().positive().max(MAX_QUANTITY).nullable(),
+  quantityMax: z.number().positive().max(MAX_QUANTITY).nullable(),
+  unitCode: z.enum(UNIT_CODES).nullable(),
+  name: z.string().min(1).max(200),
+  preparation: z.string().max(200).nullable(),
+  note: z.string().max(500).nullable(),
+  isOptional: z.boolean(),
+});
+export type LineHint = z.infer<typeof lineHintSchema>;
 
 /** import_jobs.raw_payload is written by the server, but RLS lets its owner edit it: check it on read. */
 export const extractedRecipeSchema = z.object({
-  method: z.enum(["jsonld", "microdata", "paste"]),
+  method: z.enum(["jsonld", "microdata", "paste", "llm"]),
   title: z.string().nullable(),
   description: z.string().nullable(),
   ingredients: z.array(z.object({ section: z.string().nullable(), text: z.string() })).max(500),
@@ -38,6 +54,7 @@ export const extractedRecipeSchema = z.object({
   imageUrl: z.string().nullable(),
   siteName: z.string().nullable(),
   url: z.string().nullable(),
+  lineHints: z.record(z.string(), lineHintSchema).optional(),
 });
 
 const MAX_TEXT = 5000;
@@ -139,7 +156,8 @@ export function withSections(lines: readonly string[]): ExtractedIngredient[] {
   return out;
 }
 
-function meta($: cheerio.CheerioAPI, pageUrl: string | null) {
+/** The site name and canonical URL a page gives for itself. */
+export function meta($: cheerio.CheerioAPI, pageUrl: string | null) {
   const siteName =
     $('meta[property="og:site_name"]').attr("content")?.trim() ||
     (pageUrl ? new URL(pageUrl).hostname.replace(/^www\./, "") : null);

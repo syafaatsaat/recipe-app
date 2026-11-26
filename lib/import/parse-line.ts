@@ -33,6 +33,8 @@ export interface ParsedLine {
   /** information that doesn't need action ("1 stick = 4 oz") */
   info: string[];
   fix: LineFix | null;
+  /** an AI reading of a flagged line (doc §3.11), offered on the review, never applied unasked */
+  suggestion?: ParsedFields;
 }
 
 // ── lexing ───────────────────────────────────────────────────────────────────

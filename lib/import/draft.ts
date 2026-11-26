@@ -4,7 +4,7 @@
 import { MAX_QUANTITY, parseQuantity } from "@/lib/culinary/quantity";
 import { fahrenheitToC, type RecipeDraft } from "@/lib/recipes/schema";
 import type { ExtractedRecipe } from "./extract";
-import { parseLine, type ParsedLine } from "./parse-line";
+import { FLAG_BELOW, parseLine, type ParsedLine } from "./parse-line";
 
 export interface ImportSource {
   method: ExtractedRecipe["method"];
@@ -78,7 +78,9 @@ export function toImportDraft(x: ExtractedRecipe): ImportDraft {
   for (const ing of x.ingredients) {
     const last = groups[groups.length - 1];
     if (!last || last.title !== ing.section) groups.push({ title: ing.section, lines: [] });
-    groups[groups.length - 1].lines.push(parseLine(ing.text));
+    const p = parseLine(ing.text);
+    const hint = x.lineHints?.[ing.text];
+    groups[groups.length - 1].lines.push(hint && p.confidence < FLAG_BELOW ? { ...p, suggestion: hint } : p);
   }
   const kept = groups.slice(0, MAX_SECTIONS).map((g) => ({ ...g, lines: g.lines.slice(0, MAX_LINES) }));
   if (kept.length === 0) kept.push({ title: null, lines: [] });
@@ -126,6 +128,10 @@ export interface ReviewChoices {
   movedSteps?: ReadonlySet<number>;
   /** catalog matches found for moved steps, by step index */
   stepMatches?: ReadonlyMap<number, string | null>;
+  /** lines whose AI suggestion the reviewer chose ("Use this"), by line key */
+  suggested?: ReadonlySet<string>;
+  /** catalog matches for those suggestions, by line key */
+  suggestionMatches?: ReadonlyMap<string, string | null>;
 }
 
 export const lineKey = (si: number, li: number) => `${si}-${li}`;
@@ -140,19 +146,27 @@ export const stepAsLine = (body: string) => parseLine(body);
  * are marked checked (confidence 1). Lines moved to the method become steps (their
  * original text) after the others; steps moved to the ingredients are parsed and join
  * the last section. A section left empty goes, unless it's the last one; one section
- * left on its own drops the title it only needed to tell sections apart.
+ * left on its own drops the title it only needed to tell sections apart. A line whose
+ * AI suggestion was chosen saves the suggestion's fields (`parsed` holds it), checked,
+ * keeping the original text.
  */
-export function reviewedDraft(draft: RecipeDraft, c: ReviewChoices): RecipeDraft {
+export function reviewedDraft(draft: RecipeDraft, c: ReviewChoices, parsed?: readonly (readonly ParsedLine[])[]): RecipeDraft {
   const movedLines = c.movedLines ?? new Set<string>();
   const movedSteps = c.movedSteps ?? new Set<number>();
   const check = (l: Line, key: string): Line => (c.accepted.has(key) ? { ...l, parseConfidence: 1 } : l);
 
+  const suggestionOf = (l: Line, key: string, si: number, li: number): Line => {
+    const fields = c.suggested?.has(key) ? parsed?.[si]?.[li]?.suggestion : undefined;
+    if (!fields) return check(l, key);
+    const p: ParsedLine = { raw: l.rawText ?? l.name, fields, confidence: 1, info: [], fix: null };
+    return importedLine(p, c.suggestionMatches?.get(key) ?? null);
+  };
   const sections = draft.sections.map((s, si) => ({
     ...s,
     ingredients: s.ingredients
-      .map((l, li) => ({ l, key: lineKey(si, li) }))
+      .map((l, li) => ({ l, li, key: lineKey(si, li) }))
       .filter(({ key }) => !c.removedLines.has(key) && !movedLines.has(key))
-      .map(({ l, key }) => check(l, key)),
+      .map(({ l, li, key }) => suggestionOf(l, key, si, li)),
   }));
   const fromSteps = [...movedSteps]
     .filter((i) => i < draft.steps.length && !c.removedSteps.has(i))
