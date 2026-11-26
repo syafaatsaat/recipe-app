@@ -97,3 +97,36 @@ Ingredients
 Instructions
 Heat the oven to 350°F.
 Bake 45 minutes, until golden.`;
+
+/** A whole recipe card copied from a blog: buttons, ratings, card details, equipment, notes, nutrition. */
+export const PASTE_FULL_CARD = `Jump to Recipe
+Brown butter cookies
+Chewy in the middle, crisp at the edge.
+★★★★★
+4.86 from 21 votes
+Print Recipe
+Pin Recipe
+Prep Time 20 mins
+Cook Time 12 mins
+Servings 24 cookies
+Course Dessert
+Cuisine
+American
+Keyword brown butter, cookies
+Calories: 180kcal
+Author Test Kitchen
+Equipment
+2 baking sheets
+1 stand mixer
+Ingredients
+1 cup unsalted butter
+2 cups all-purpose flour
+Instructions
+Brown the butter and let it cool.
+Mix in the flour and bake 12 minutes.
+Notes
+The dough keeps 3 days in the fridge.
+Nutrition
+Calories: 180kcal | Carbohydrates: 20g | Fat: 10g
+Cook Mode
+Prevent your screen from going dark`;

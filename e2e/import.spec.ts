@@ -112,6 +112,12 @@ test("paste from the New menu keeps sections", async ({ page }) => {
   await page.getByLabel("Recipe text").filter({ visible: true }).fill(
     [
       "Lemon drizzle loaf",
+      "A tender loaf with a sharp glaze.",
+      "Print Recipe",
+      "4.9 from 30 votes",
+      "Course Dessert",
+      "Cuisine",
+      "British",
       "Prep Time",
       "15 mins",
       "Cook Time",
@@ -130,6 +136,8 @@ test("paste from the New menu keeps sections", async ({ page }) => {
       "1. Heat the oven to 180°C.",
       "2. Beat everything together and spoon into a loaf tin.",
       "3. Mix the lemon juice and sugar, and pour over the warm cake.",
+      "Nutrition",
+      "Calories: 250kcal",
     ].join("\n"),
   );
   await page.getByRole("button", { name: "Read pasted text" }).click();
@@ -137,7 +145,7 @@ test("paste from the New menu keeps sections", async ({ page }) => {
   await expect(page.getByText("From pasted text · 8 servings")).toBeVisible();
   await expect(page.getByRole("heading", { name: "For the drizzle" })).toBeVisible();
   // the labels and their values are read as yield and times, not as ingredients or steps
-  await expect(page.getByRole("listitem").filter({ hasText: /mins|Time|Servings/ })).toHaveCount(0);
+  await expect(page.getByRole("listitem").filter({ hasText: /mins|Time|Servings|Course|British|votes|Calories|Print/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Method · 3 steps" })).toBeVisible();
   await page.getByRole("button", { name: "Import", exact: true }).click();
 
@@ -145,6 +153,7 @@ test("paste from the New menu keeps sections", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "For the drizzle" })).toBeVisible();
   await expect(page.getByText(/From .* ↗/)).toHaveCount(0);
   await expect(page.getByText("Prep 15 min · Cook 45 min · Oven 180 °C")).toBeVisible();
+  await expect(page.getByText("A tender loaf with a sharp glaze.")).toBeVisible();
 });
 
 test("private addresses are refused with a friendly error", async ({ page }) => {

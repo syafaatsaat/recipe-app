@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { recipeDraftSchema } from "@/lib/recipes/schema";
 import { ovenTempFromSteps, parseYield, toImportDraft } from "./draft";
 import { extractRecipe, isoMinutes, plainText, withSections } from "./extract";
-import { JSONLD_GRAPH, JSONLD_SIMPLE, MICRODATA, NO_RECIPE, PASTE_BLOG_CARD, PASTE_NO_HEADINGS, PASTE_WITH_HEADINGS } from "./fixtures";
+import { JSONLD_GRAPH, JSONLD_SIMPLE, MICRODATA, NO_RECIPE, PASTE_BLOG_CARD, PASTE_FULL_CARD, PASTE_NO_HEADINGS, PASTE_WITH_HEADINGS } from "./fixtures";
 import { durationMinutes, parsePaste } from "./paste";
 
 describe("extractRecipe: JSON-LD", () => {
@@ -172,7 +172,27 @@ describe("parsePaste", () => {
 
   it("keeps a line after a label when it isn't the label's value", () => {
     const r = parsePaste("Bread\nMakes\n1 loaf\nCook Time\nabout an hour\nPreparation:\nKnead well.");
-    expect(r).toMatchObject({ yieldText: "Makes 1 loaf", cookMin: null, steps: ["about an hour", "Knead well."] });
+    expect(r).toMatchObject({ yieldText: "Makes 1 loaf", cookMin: null, description: "about an hour", steps: ["Knead well."] });
+  });
+
+  it("leaves out card buttons, ratings, details, equipment and nutrition; notes go to the description", () => {
+    const r = parsePaste(PASTE_FULL_CARD);
+    expect(r).toMatchObject({
+      title: "Brown butter cookies",
+      description: "Chewy in the middle, crisp at the edge. The dough keeps 3 days in the fridge.",
+      yieldText: "Servings 24 cookies",
+      prepMin: 20,
+      cookMin: 12,
+    });
+    expect(r.ingredients.map((i) => i.text)).toEqual(["1 cup unsalted butter", "2 cups all-purpose flour"]);
+    expect(r.steps).toEqual(["Brown the butter and let it cool.", "Mix in the flour and bake 12 minutes."]);
+  });
+
+  it("keeps sentences that only start like a card detail", () => {
+    const r = parsePaste("Soup\n1 onion\nCourse salt works too, if you have it.\nDiet: vegan\nAuthor notes are below.");
+    expect(r.steps).toEqual(["Course salt works too, if you have it.", "Author notes are below."]);
+    // a label alone drops its value, but not a heading that follows it
+    expect(parsePaste("Soup\nCuisine\nIngredients\n1 onion").ingredients.map((i) => i.text)).toEqual(["1 onion"]);
   });
 
   it("reads durations", () => {
