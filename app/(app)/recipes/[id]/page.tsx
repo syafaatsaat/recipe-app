@@ -6,7 +6,9 @@ import { RecipeView } from "@/components/recipes/view/recipe-view";
 import { listPans } from "@/db/pans";
 import { getRecipe } from "@/db/recipes";
 import { requireUserId } from "@/lib/auth";
+import { Photo } from "@/components/photos/photo";
 import { getDb } from "@/lib/db";
+import { photoUrls } from "@/lib/photos/storage";
 import { toRenderInput, toRenderLines } from "@/lib/recipes/render-input";
 
 export const metadata: Metadata = { title: "Recipe" };
@@ -25,6 +27,8 @@ async function Recipe({ params }: { params: PageProps<"/recipes/[id]">["params"]
   const { recipe, pan, pans } = await load(params);
   const { draft } = recipe;
   const lines = toRenderLines(draft, recipe.catalog);
+  const urls = await photoUrls(recipe.photos);
+  const photoOf = new Map(draft.photos.map((p) => [p.id, p]));
   const input = toRenderInput(draft, lines, pan);
 
   return (
@@ -36,6 +40,7 @@ async function Recipe({ params }: { params: PageProps<"/recipes/[id]">["params"]
       recipeId={recipe.id}
       versionCount={recipe.versionCount}
       credit={recipe.sourceType === "manual" ? null : { url: recipe.sourceUrl, name: recipe.sourceName }}
+      photos={urls}
     >
       <div>
         {draft.steps.length > 0 && (
@@ -47,7 +52,19 @@ async function Recipe({ params }: { params: PageProps<"/recipes/[id]">["params"]
               {draft.steps.map((s, i) => (
                 <li key={i} className="grid grid-cols-[28px_minmax(0,1fr)]">
                   <span className="font-mono text-primary">{i + 1}</span>
-                  <span className="whitespace-pre-line">{s.body}</span>
+                  <div className="flex flex-col gap-3">
+                    <span className="whitespace-pre-line">{s.body}</span>
+                    {s.photoId && photoOf.has(s.photoId) && (
+                      <Photo
+                        {...urls[s.photoId]}
+                        width={photoOf.get(s.photoId)!.width}
+                        height={photoOf.get(s.photoId)!.height}
+                        alt={photoOf.get(s.photoId)!.alt ?? `Step ${i + 1}`}
+                        sizes="(max-width: 640px) 90vw, 560px"
+                        className="max-h-[320px] w-full rounded-[4px_14px_6px_12px]"
+                      />
+                    )}
+                  </div>
                 </li>
               ))}
             </ol>

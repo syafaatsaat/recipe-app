@@ -6,7 +6,10 @@ import { NewRecipeMenu } from "@/components/recipes/new-recipe-menu";
 import { yieldText } from "@/components/recipes/format";
 import { SearchField } from "@/components/recipes/search-field";
 import { Button } from "@/components/ui/button";
+import { Photo } from "@/components/photos/photo";
 import { listRecipes } from "@/db/recipes";
+import { safeImageUrl } from "@/lib/photos/photos";
+import { signPaths } from "@/lib/photos/storage";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
@@ -17,6 +20,7 @@ async function RecipeList({ searchParams }: { searchParams: PageProps<"/recipes"
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : undefined;
   const recipes = await listRecipes(getDb(), userId, q);
+  const thumbs = await signPaths(recipes.flatMap((r) => (r.cover?.thumbPath ? [r.cover.thumbPath] : [])));
 
   if (recipes.length === 0 && !q) return <EmptyState />;
   if (recipes.length === 0) {
@@ -27,12 +31,20 @@ async function RecipeList({ searchParams }: { searchParams: PageProps<"/recipes"
       {recipes.map((r) => (
         <li key={r.id}>
           <Link href={`/recipes/${r.id}`} className="group flex items-center gap-3.5 border-b border-border py-3.5 no-underline">
-            <div
-              aria-hidden
-              className="flex size-[76px] flex-none items-center justify-center rounded-[4px_14px_6px_12px] border border-dashed border-input/60 font-heading text-[26px] text-muted-foreground"
-            >
-              {r.title.slice(0, 1).toUpperCase()}
-            </div>
+            {r.cover ? (
+              <Photo
+                src={r.cover.thumbPath ? (thumbs.get(r.cover.thumbPath) ?? null) : safeImageUrl(r.cover.externalUrl)}
+                imported={!r.cover.thumbPath}
+                className="size-[76px] flex-none rounded-[4px_14px_6px_12px]"
+              />
+            ) : (
+              <div
+                aria-hidden
+                className="flex size-[76px] flex-none items-center justify-center rounded-[4px_14px_6px_12px] border border-dashed border-input/60 font-heading text-[26px] text-muted-foreground"
+              >
+                {r.title.slice(0, 1).toUpperCase()}
+              </div>
+            )}
             <div className="flex min-w-0 flex-col gap-1">
               <span className="font-heading text-lg leading-tight font-medium group-hover:text-primary">{r.title}</span>
               <span className="text-[13px] text-muted-foreground">

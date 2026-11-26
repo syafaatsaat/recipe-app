@@ -15,7 +15,7 @@ async function Editor() {
   const initial = toEditorState(emptyDraft(), {});
   initial.sections[0].lines = [newLine(), newLine(), newLine()];
   initial.steps = [{ key: "t-first", body: "", photoId: null }];
-  return <RecipeEditor recipeId={null} versionNo={0} initial={initial} pans={pans} />;
+  return <RecipeEditor recipeId={null} versionNo={0} initial={initial} pans={pans} userId={userId} />;
 }
 
 export default function NewRecipePage() {

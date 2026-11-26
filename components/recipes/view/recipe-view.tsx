@@ -9,6 +9,8 @@ import { Fractions } from "@/components/fractions";
 import { minutesText } from "@/components/recipes/format";
 import { RecipeMenu } from "@/components/recipes/recipe-menu";
 import { parseScaleParams, render, sourceSystem, toScaleParams, type RenderInput, type ScaleState, type UnitSystem } from "@/lib/culinary";
+import { Photo } from "@/components/photos/photo";
+import type { PhotoUrls } from "@/lib/recipes/editor-state";
 import type { PanOption } from "@/db/pans";
 import type { RenderLine } from "@/lib/recipes/render-input";
 import {
@@ -42,6 +44,7 @@ export function RecipeView({
   recipeId,
   versionCount,
   credit = null,
+  photos = {},
   children,
 }: {
   draft: RecipeDraft;
@@ -52,10 +55,13 @@ export function RecipeView({
   versionCount: number;
   /** where an imported recipe came from, for the credit line */
   credit?: { url: string | null; name: string | null } | null;
+  /** signed or linked URLs of the draft's photos, by id (doc §3.12) */
+  photos?: PhotoUrls;
   /** method and footer (server-rendered) */
   children: React.ReactNode;
 }) {
   const params = useSearchParams();
+  const cover = draft.coverPhotoId ? (draft.photos.find((p) => p.id === draft.coverPhotoId) ?? null) : null;
   const source = sourceSystem(input);
   const parsed = parseScaleParams(params);
   const scale = parsed.scale;
@@ -89,6 +95,18 @@ export function RecipeView({
 
   return (
     <article className="flex flex-col">
+      {cover && (
+        <div className="px-6 pb-4">
+          <Photo
+            {...photos[cover.id]}
+            width={cover.width}
+            height={cover.height}
+            alt={cover.alt ?? draft.title}
+            eager
+            className="h-[210px] w-full rounded-[6px_22px_8px_18px]"
+          />
+        </div>
+      )}
       <div className="flex items-start justify-between gap-2 px-6">
         <h1 className="pt-2 text-[30px] leading-tight font-semibold">{draft.title}</h1>
         <RecipeMenu id={recipeId} title={draft.title} versionCount={versionCount} />

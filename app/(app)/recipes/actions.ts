@@ -46,7 +46,8 @@ export async function saveRecipe(id: string | null, input: unknown): Promise<Sav
       target = id;
     }
   } catch (e) {
-    if (e instanceof PhotoNotUploadedError) return { error: PHOTO_MISSING };
+    // by name too: a server action and the db module can load as separate instances in dev
+    if (e instanceof PhotoNotUploadedError || (e instanceof Error && e.name === "PhotoNotUploadedError")) return { error: PHOTO_MISSING };
     if (isMissingAccount(e)) await endMissingAccount();
     console.error("saveRecipe failed", e);
     return { error: "Couldn’t save. Check the ingredients you linked and try again." };

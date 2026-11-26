@@ -4,6 +4,8 @@ import { ArrowDown, ArrowUp, Ellipsis, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition, useId } from "react";
 import { exactIngredient, saveRecipe } from "@/app/(app)/recipes/actions";
+import { Photo } from "@/components/photos/photo";
+import { PhotoPicker } from "@/components/photos/photo-picker";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,6 +28,7 @@ import {
   type EditorState,
   type FieldErrors,
   type LineState,
+  type PhotoState,
   type SectionState,
 } from "@/lib/recipes/editor-state";
 import { cn } from "@/lib/utils";
@@ -84,16 +87,27 @@ function RowMenu({ label, onUp, onDown, onRemove }: { label: string; onUp?: () =
   );
 }
 
+const hostOf = (url: string | null) => {
+  try {
+    return url ? new URL(url).hostname.replace(/^www\./, "") : null;
+  } catch {
+    return null;
+  }
+};
+
 export function RecipeEditor({
   recipeId,
   versionNo,
   initial,
   pans,
+  userId,
 }: {
   recipeId: string | null;
   versionNo: number;
   initial: EditorState;
   pans: PanOption[];
+  /** the folder photos upload to (storage RLS checks it too) */
+  userId: string;
 }) {
   const [s, setS] = useState(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -114,6 +128,17 @@ export function RecipeEditor({
         l.key === lineKey ? { ...l, ...patch, ...(touched && l.parseConfidence !== null ? { parseConfidence: 1 } : {}) } : l,
       ),
     }));
+
+  /** A new upload, remembered by id; `place` puts it on the cover or a step. */
+  const addPhoto = (p: PhotoState, place: { cover: true } | { step: string }) =>
+    setS((prev) => ({
+      ...prev,
+      photos: { ...prev.photos, [p.id]: p },
+      ...("cover" in place
+        ? { coverPhotoId: p.id }
+        : { steps: prev.steps.map((t) => (t.key === place.step ? { ...t, photoId: p.id } : t)) }),
+    }));
+  const cover = s.coverPhotoId ? (s.photos[s.coverPhotoId] ?? null) : null;
 
   /** When a typed name is exactly a catalog name or alias, link it (the user can still change it). */
   async function autoMatch(secKey: string, line: LineState) {
@@ -158,6 +183,45 @@ export function RecipeEditor({
             {recipeId ? `Editing · v${versionNo}` : "New recipe"}
           </span>
         </div>
+
+        <section aria-label="Cover photo" className="flex flex-col gap-2">
+          {cover ? (
+            <>
+              <Photo
+                src={cover.src}
+                thumbSrc={cover.thumbSrc}
+                width={cover.width}
+                height={cover.height}
+                alt={cover.alt}
+                imported={cover.imported}
+                eager
+                className="h-[210px] w-full rounded-[6px_22px_8px_18px]"
+              />
+              {cover.imported && <p className="text-xs text-muted-foreground">Photo from {hostOf(cover.src) ?? "the source"}, shown from their site.</p>}
+              <div className="flex flex-wrap items-start gap-2">
+                <PhotoPicker userId={userId} label="Replace" ariaLabel="Replace the cover photo" onAdded={(p) => addPhoto(p, { cover: true })} />
+                <Button type="button" variant="ghost" onClick={() => set({ coverPhotoId: null })}>
+                  <Trash2 data-icon="inline-start" /> Remove
+                </Button>
+              </div>
+              {!cover.imported && (
+                <Labeled id={fid("alt")} label="Describe the photo (optional, for screen readers)">
+                  <Input
+                    id={fid("alt")}
+                    value={cover.alt}
+                    maxLength={200}
+                    onChange={(e) => setS((prev) => ({ ...prev, photos: { ...prev.photos, [cover.id]: { ...cover, alt: e.target.value } } }))}
+                  />
+                </Labeled>
+              )}
+            </>
+          ) : (
+            <div className="grain flex h-[150px] items-center justify-center rounded-[6px_22px_8px_18px]">
+              <PhotoPicker userId={userId} label="Add cover photo" onAdded={(p) => addPhoto(p, { cover: true })} className="bg-card" />
+            </div>
+          )}
+          <FieldError id={fid("photos-error")} message={errors.photos} />
+        </section>
 
         <Labeled id={fid("title")} label="Title" error={errors.title}>
           <Input
@@ -392,6 +456,34 @@ export function RecipeEditor({
                   rows={2}
                 />
                 <FieldError id={fid(`step-${t.key}-error`)} message={errors[`step:${t.key}`]} />
+                {t.photoId && s.photos[t.photoId] ? (
+                  <div className="flex items-start gap-2">
+                    <Photo
+                      src={s.photos[t.photoId].thumbSrc ?? s.photos[t.photoId].src}
+                      width={s.photos[t.photoId].width}
+                      height={s.photos[t.photoId].height}
+                      alt={`Step ${ti + 1}`}
+                      className="h-24 w-32 rounded-[4px_14px_6px_12px]"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      aria-label={`Remove the photo from step ${ti + 1}`}
+                      onClick={() => set({ steps: s.steps.map((x) => (x.key === t.key ? { ...x, photoId: null } : x)) })}
+                    >
+                      <Trash2 data-icon="inline-start" /> Remove photo
+                    </Button>
+                  </div>
+                ) : (
+                  <PhotoPicker
+                    userId={userId}
+                    label="Add photo"
+                    ariaLabel={`Add a photo to step ${ti + 1}`}
+                    variant="ghost"
+                    className="self-start text-muted-foreground"
+                    onAdded={(p) => addPhoto(p, { step: t.key })}
+                  />
+                )}
               </div>
               <RowMenu
                 label={`Step ${ti + 1}`}
