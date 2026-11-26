@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { formatQuantity, MAX_QUANTITY, parseQuantity } from "./quantity";
+import { formatQuantity, MAX_QUANTITY, parseQuantity, plainFractions } from "./quantity";
 
 const ok = (quantity: number | null, quantityMax: number | null = null) => ({ ok: true, quantity, quantityMax });
 
@@ -49,6 +49,24 @@ describe("parseQuantity", () => {
     const r = parseQuantity(text);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain(message);
+  });
+
+  it("writes fraction glyphs out for text fields", () => {
+    expect(plainFractions("1½")).toBe("1 1/2");
+    expect(plainFractions("¾")).toBe("3/4");
+    expect(plainFractions("1⅓–2⅔")).toBe("1 1/3–2 2/3");
+    expect(plainFractions("12")).toBe("12");
+  });
+
+  it("plain fractions read back as the same amount", () => {
+    const fracs = [1 / 8, 1 / 4, 1 / 3, 1 / 2, 2 / 3, 3 / 4];
+    const value = fc.tuple(fc.integer({ min: 0, max: 500 }), fc.constantFrom(...fracs)).map(([w, f]) => w + f);
+    fc.assert(
+      fc.property(value, (v) => {
+        const r = parseQuantity(plainFractions(formatQuantity(v)));
+        expect(r.ok && r.quantity).toBeCloseTo(v, 9);
+      }),
+    );
   });
 
   it("round-trips everything formatQuantity writes", () => {

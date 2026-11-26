@@ -26,6 +26,7 @@
 - **Vercel function timeout:** Hobby is 300 s, as both default and maximum (verified, with Fluid compute). That's no longer tight, but still put a hard timeout (~20 s) on each outbound fetch/LLM call so a hung site can't hold a request for 5 minutes. Don't chain retries in-request.
 - **Supabase image transforms are paid (Pro and up)** (verified). Resize client-side before upload (2 sizes: 1600px and 400px, WebP).
 - **Some sites block or Cloudflare-challenge server fetches.** Show "couldn't import, paste the text instead" and send the pasted text through the same parser/LLM path. This is also how you get "create your own recipe from text" for free.
+- **Importing fetches URLs that users type (SSRF).** `lib/import/url-guard.ts` and `lib/fetch-page.ts`: http(s) only, ports 80/443, no credentials, no localhost/.local/.internal or single-label names; every DNS answer must be public (private, loopback, link-local, CGNAT, multicast and IPv4-mapped forms are refused); redirects followed by hand (max 5, each hop re-checked); 20 s, 3 MB, HTML only; a generic User-Agent; 30 imports per user per hour. `IMPORT_ALLOW_HOSTS` (e2e fixture server) is ignored in production. **Known gap:** DNS rebinding, since `fetch` resolves the name again after our check. Closing it means pinning the checked address with an undici dispatcher; accepted for now (M5).
 - **Imported images:** store the source URL and don't re-host by default (copyright plus storage quota). User photos go to Storage.
 
 ## 2. Corrections to the plan
@@ -52,7 +53,10 @@
    - `proxy.ts` (Next 16's renamed middleware) refreshes the session cookie on every request with `getClaims()` and does optimistic redirects only, for page loads (GET/HEAD). Server Actions are never redirected there: they expect an RSC reply, so they check the user themselves and use `redirect("/login")`.
    - **The security boundary is `lib/auth.ts`** (`getUser()` / `requireUserId()`, which verify the JWT with `getClaims()`; never `getSession()` on the server) **plus RLS**. Every page, Server Action and route that touches user data calls it.
    - `getUser()` calls `await connection()` first: `getClaims()` reads the clock, which Next forbids while prerendering.
+   - A session can outlive its account (a deleted user, or locally `pnpm db:reset`): `getClaims()` checks the token's signature, not the database. The first write then fails on an `owner_id` foreign key; actions catch that (`isMissingAccount`), sign out and send the visitor to `/login?error=gone`.
    - Email links (sign-up confirmation, password reset) land on `/auth/confirm`, which accepts both the PKCE `?code=` and the `?token_hash=&type=` styles.
+9. **"Pinch", "dash", "to taste" and "as needed" have no amount** (decided 2026-11-26). The parser stores them like a to-taste line: `quantity` null, with the word kept in `note` ("pinch flaky salt"). They never scale or convert. There's no `pinch` unit, so `UNIT_CODES` and the `unit_code` CHECK are unchanged.
+10. **The oven temperature keeps the unit it was entered in** (decided 2026-11-26, after a recipe entered at 180 °C showed as 355 °F because its ingredients were in cups). `oven_temp_c` stays the canonical value; `oven_temp_unit` ('F'/'C', null for recipes saved before) records what was typed, and the draft carries it as `ovenUnit` (defaults to null, so v1 snapshots still read). The recipe page shows it as entered, adding the conversion in brackets when the page shows the other unit system: "180 °C (355 °F)" in a US view, "180 °C" in Metric. Conversions round to 5°; the entered value is shown exactly (°F to the degree). The editor reopens in the entered unit; imports record the unit the method used.
 
 ## 4. Schema (Postgres)
 
@@ -63,8 +67,10 @@
 | `…000_init_schema.sql` | enums (`recipe_source`, `pan_shape`, `scaling_rule`), tables `profiles`, `ingredients`, `pans`, `recipes`, `recipe_sections`, `recipe_ingredients`, `recipe_steps`, `recipe_images`, `recipe_versions`, `import_jobs`, plus indexes |
 | `…001_rls_policies.sql` | RLS on every table, plus policies |
 | `…002_triggers.sql` | profile row on signup, `recipes.updated_at` |
+| `…003_import_jobs_paste.sql` | `import_jobs.url` nullable for pasted text, with a CHECK that link imports keep one (M5) |
+| `…004_recipes_oven_unit.sql` | `recipes.oven_temp_unit` ('F'/'C'), only with a temperature (§3.10, M5) |
 
-Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks). Seed: [`supabase/seed.sql`](../supabase/seed.sql).
+Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks) and [`import_jobs.test.sql`](../supabase/tests/import_jobs.test.sql) (5). Seed: [`supabase/seed.sql`](../supabase/seed.sql).
 
 **What changed from the v1 draft SQL, and why.** The draft applied cleanly, but probing it found the following. The verbatim draft is in git history (commit `50eeb88`).
 - **No RLS at all.** Supabase exposes `public` tables through the Data API with the public anon key, so with RLS off, anyone could read and write every table. Every table now has RLS. Child tables have no `owner_id`, so their policies check ownership through `recipes`. Global `ingredients`/`pans` are readable by `anon` and `authenticated` and writable by no one through the API. `recipe_versions` is select/insert only, so history can't be edited. Insert/update policies also check that a linked `pan_id`/`ingredient_id` is one the user can see, because FK checks ignore RLS.
@@ -190,7 +196,8 @@ These settle what the pipeline above left open. `lib/culinary/` tests encode eve
 2. ✅ **Done 2026-11-25, see §8.** **Design pass 1: UX wireframes (½–1 day, low-fi).** Cover the 4 screens that drive structure: recipe view with scale/unit controls and the "orig." display, structured ingredient editor, import review/fix, and recipe list. Do it here because these screens decide component boundaries and the editor's data flow. Pick a shadcn theme, type scale and colour tokens. Skip pixel polish.
 3. ✅ **Done 2026-11-25 (M3).** Schema, auth, manual recipe CRUD with structured ingredient editor. Add the daily Supabase keep-alive cron (Vercel Cron hitting a route that runs `select 1`) as soon as the project is deployed. (Built: `/api/keep-alive` and `vercel.json`, daily at 09:00 UTC; it needs `CRON_SECRET` set in Vercel.)
 4. ✅ **Done 2026-11-26 (M4).** Render with scaling, unit toggle and URL state. Built: `ScaleBar`, `UnitToggle` with Reset, `WarningList`, "orig." labels, and the `ScaleSheet` (Factor / Yield / Pan with `PanDiagram`s), plus "Copy link to this view". The view renders on the client from `?mode=…&units=…` and updates the URL with `history.replaceState`, so taps are instant and Back leaves the recipe; a shared link is server-rendered already scaled. Wording for warnings and pan options lives in `lib/recipes/scale-view.ts`.
-5. Importer: JSON-LD, then the ingredient-line parser, then the review/fix screen (low-confidence lines highlighted), then the LLM fallback.
+5. ✅ **Done 2026-11-26 (M5).** Importer: JSON-LD and microdata, then the ingredient-line parser, then the review/fix screen (low-confidence lines highlighted), with pasted text as the fallback when a page has no recipe data or blocks the fetch. Built: `lib/import/` (pure: `parse-line`, `extract`, `paste`, `draft`, `url-guard`), `lib/fetch-page.ts`, `db/imports.ts`, `/recipes/import` (link or paste) and `/recipes/import/[jobId]` (review, or the paste fallback for a failed link). `import_jobs.raw_payload` keeps the extracted recipe and the review re-parses it, so parser fixes reach pending reviews. On the review, any ingredient or step can be removed (struck through, with Undo) or moved to the other list; a step moved to the ingredients is parsed and matched like any line (`reviewedDraft` in `lib/import/draft.ts` builds what's saved). Imported lines keep `raw_text` and `parse_confidence`; the editor shows the original under a line that's still flagged, until it's edited. Recipes credit their source ("From Test Kitchen ↗"). E2E runs against hand-written pages from `e2e/fixture-server.mjs`.
+   5b. **LLM fallback (M5b, split off 2026-11-26** so M5 needs no API key): Claude Haiku for pages without structured data and for low-confidence lines.
 6. Photo upload (client resize, Storage, cover/per-step).
 7. **Design pass 2: visual polish (2–3 days).** Do this once real recipes and photos exist, because you can't judge a design against lorem ipsum. Covers the landing/demo page, empty states, mobile layout (people cook from phones), loading skeletons, dark mode. Then seed a public demo account and launch the portfolio here, since this is the first shippable version.
 8. Version history, then cook mode, then search/tags, then shopping list, then cook log. Each feature gets a quick wireframe before you build it, not a separate design phase.
@@ -229,9 +236,10 @@ Recheck these before relying on them. Limits change.
 | @supabase/ssr / @supabase/supabase-js | 0.12.7 / 2.119.2 | Added in M3. |
 | shadcn (CLI + `shadcn/tailwind.css`) | 4.23.0 | radix base, nova preset. Pulled in radix-ui 1.8.1, cmdk 1.1.1, sonner 2.0.8, lucide-react 1.79.0, class-variance-authority 0.7.1, cn 0.5.2 (shadcn's own class merger), tw-animate-css 1.4.0. next-themes was removed (no dark mode yet). Controls were resized to the §8 rules. |
 | @playwright/test | 1.65.1 | Chromium only, phone viewport. |
+| cheerio | 1.2.0 | Added in M5 (the latest release). Reads JSON-LD and microdata from imported pages. |
 | @types/node | 24.19.2 | Unverified: match it to the Node version Vercel runs when deploying (local dev is Node 26). |
 
-Not installed yet (added at their milestone): cheerio 1.2.0, @anthropic-ai/sdk 1.14.0. Re-check versions when installing.
+Not installed yet (added at their milestone): @anthropic-ai/sdk 1.14.0 (M5b). Re-check the version when installing.
 
 ## 8. Design (pass 1, decided 2026-11-25)
 
@@ -273,6 +281,8 @@ All three fonts are on Google Fonts under the SIL Open Font License, loaded with
 | Body, labels, buttons | DM Sans | 400 / 500 | 15 (labels 13, meta 12–13) |
 | Amounts, ×factor, step numbers, "orig.", chip quantities | DM Mono | 500 / 400 | 14.5 amounts, 22 factor, 12 "orig." |
 | Eyebrow labels ("SCALE") | DM Sans | 400, uppercase, +0.12em | 12 |
+
+**Fractions** (changed 2026-11-26: DM Mono's own ¼ ½ ¾ are tiny stacked glyphs, and ⅓ ⅛ fall back to another font). Amounts keep the Unicode glyph in the text, but `components/fractions.tsx` draws each one as a raised numerator, "/" and denominator in the surrounding digits, with a little space after a whole number ("1 ³/4"). Text fields (the editor's Amount) show the typed form instead: "1 1/2".
 
 ### Shape and spacing
 - Phone first. Designed at 390 × 844, with 24 px side padding.

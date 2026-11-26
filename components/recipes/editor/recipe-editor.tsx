@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { PanOption } from "@/db/pans";
 import { UNIT_CODES, UNITS, type UnitCode } from "@/lib/culinary/units";
+import { FLAG_BELOW } from "@/lib/import/parse-line";
 import {
   issuesToErrors,
   move,
@@ -105,14 +106,20 @@ export function RecipeEditor({
   const set = (patch: Partial<EditorState>) => setS((prev) => ({ ...prev, ...patch }));
   const setSection = (key: string, f: (sec: SectionState) => SectionState) =>
     setS((prev) => ({ ...prev, sections: prev.sections.map((sec) => (sec.key === key ? f(sec) : sec)) }));
-  const setLine = (secKey: string, lineKey: string, patch: Partial<LineState>) =>
-    setSection(secKey, (sec) => ({ ...sec, lines: sec.lines.map((l) => (l.key === lineKey ? { ...l, ...patch } : l)) }));
+  /** An edit by hand counts as checking an imported line, so its flag clears (`touched`). */
+  const setLine = (secKey: string, lineKey: string, patch: Partial<LineState>, touched = true) =>
+    setSection(secKey, (sec) => ({
+      ...sec,
+      lines: sec.lines.map((l) =>
+        l.key === lineKey ? { ...l, ...patch, ...(touched && l.parseConfidence !== null ? { parseConfidence: 1 } : {}) } : l,
+      ),
+    }));
 
   /** When a typed name is exactly a catalog name or alias, link it (the user can still change it). */
   async function autoMatch(secKey: string, line: LineState) {
     if (line.ingredient || !line.name.trim()) return;
     const match = await exactIngredient(line.name);
-    if (match) setLine(secKey, line.key, { ingredient: match });
+    if (match) setLine(secKey, line.key, { ingredient: match }, false);
   }
 
   function save() {
@@ -255,12 +262,14 @@ export function RecipeEditor({
             {sec.lines.map((l, li) => {
               const amountErr = errors[`line:${l.key}:amount`];
               const nameErr = errors[`line:${l.key}:name`];
+              const unchecked = !!l.rawText && l.parseConfidence !== null && l.parseConfidence < FLAG_BELOW;
               return (
                 <div
                   key={l.key}
                   className={cn(
                     "flex flex-col gap-2 border-b border-border/70 py-3",
-                    !l.ingredient && l.name.trim() && "-mx-3 bg-warning-muted px-3",
+                    ((!l.ingredient && l.name.trim()) || unchecked) && "-mx-3 bg-warning-muted px-3",
+                    unchecked && "border-l-2 border-l-destructive",
                   )}
                 >
                   <div className="flex gap-2">
@@ -330,6 +339,11 @@ export function RecipeEditor({
                       optional
                     </label>
                   </div>
+                  {unchecked && (
+                    <p className="text-[13px] leading-snug text-muted-foreground">
+                      Imported from <span className="font-mono text-xs text-foreground">{l.rawText}</span>. Check it, then edit or keep it.
+                    </p>
+                  )}
                   <FieldError id={fid(`${l.key}-amount-error`)} message={amountErr} />
                   <FieldError id={fid(`${l.key}-name-error`)} message={nameErr} />
                   {!l.ingredient && l.name.trim() && (

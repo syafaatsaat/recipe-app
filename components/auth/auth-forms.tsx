@@ -49,9 +49,15 @@ function Status({ state }: { state: AuthState }) {
   return null;
 }
 
-export function SignInForm({ next, linkError }: { next?: string; linkError?: boolean }) {
+const NOTICES: Record<string, string> = {
+  link: "That link is invalid or has expired.",
+  gone: "That account no longer exists. Sign in with another, or create one.",
+};
+
+/** `notice`: the ?error= code a redirect brought ("link", "gone"). */
+export function SignInForm({ next, notice }: { next?: string; notice?: string }) {
   const [state, action, pending] = useActionState(signIn, {
-    error: linkError ? "That link is invalid or has expired." : undefined,
+    error: notice && Object.hasOwn(NOTICES, notice) ? NOTICES[notice] : undefined,
   });
   return (
     <form action={action} className="flex flex-col gap-4">

@@ -1,0 +1,82 @@
+// Import jobs (doc §4 import_jobs): one row per import attempt, holding the
+// extracted recipe as raw_payload so the review page can re-parse it.
+import { and, count, desc, eq, gt, sql } from "drizzle-orm";
+import type { ExtractedRecipe } from "@/lib/import/extract";
+import type { Db } from "./client";
+import { importJobs, recipes } from "./schema";
+import { withUser } from "./withUser";
+
+export type ImportMethod = ExtractedRecipe["method"];
+
+export interface ImportJob {
+  id: string;
+  url: string | null;
+  method: ImportMethod | null;
+  status: "ok" | "partial" | "failed";
+  rawPayload: unknown;
+  error: string | null;
+  recipeId: string | null;
+  createdAt: string;
+}
+
+export async function createImportJob(
+  db: Db,
+  userId: string,
+  job: { url: string | null; method: ImportMethod | null; status: ImportJob["status"]; rawPayload?: ExtractedRecipe | null; error?: string | null },
+): Promise<string> {
+  const [row] = await withUser(db, userId, (tx) =>
+    tx
+      .insert(importJobs)
+      .values({ ownerId: userId, url: job.url, method: job.method, status: job.status, rawPayload: job.rawPayload ?? null, error: job.error ?? null })
+      .returning({ id: importJobs.id }),
+  );
+  return row.id;
+}
+
+export async function getImportJob(db: Db, userId: string, id: string): Promise<ImportJob | null> {
+  const [row] = await withUser(db, userId, (tx) => tx.select().from(importJobs).where(eq(importJobs.id, id)));
+  if (!row) return null;
+  return {
+    id: row.id,
+    url: row.url,
+    method: row.method as ImportMethod | null,
+    status: row.status as ImportJob["status"],
+    rawPayload: row.rawPayload,
+    error: row.error,
+    recipeId: row.recipeId,
+    createdAt: row.createdAt,
+  };
+}
+
+/** Links the job to the recipe it became. False when the job isn't the user's. */
+export async function attachRecipe(db: Db, userId: string, jobId: string, recipeId: string): Promise<boolean> {
+  const rows = await withUser(db, userId, (tx) =>
+    tx.update(importJobs).set({ recipeId }).where(eq(importJobs.id, jobId)).returning({ id: importJobs.id }),
+  );
+  return rows.length > 0;
+}
+
+/** For the rate limit: imports this user started in the last hour. */
+export async function importsInLastHour(db: Db, userId: string): Promise<number> {
+  const [row] = await withUser(db, userId, (tx) =>
+    tx.select({ n: count() }).from(importJobs).where(gt(importJobs.createdAt, sql`now() - interval '1 hour'`)),
+  );
+  return row.n;
+}
+
+/** The user's most recent recipe imported from this URL, so the review can say so. */
+export async function findBySourceUrl(
+  db: Db,
+  userId: string,
+  url: string,
+): Promise<{ id: string; title: string; createdAt: string } | null> {
+  const [row] = await withUser(db, userId, (tx) =>
+    tx
+      .select({ id: recipes.id, title: recipes.title, createdAt: recipes.createdAt })
+      .from(recipes)
+      .where(and(eq(recipes.sourceUrl, url)))
+      .orderBy(desc(recipes.createdAt))
+      .limit(1),
+  );
+  return row ?? null;
+}

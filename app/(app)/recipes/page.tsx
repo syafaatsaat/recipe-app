@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Fractions } from "@/components/fractions";
 import { Suspense } from "react";
 import { NewRecipeMenu } from "@/components/recipes/new-recipe-menu";
 import { yieldText } from "@/components/recipes/format";
@@ -35,7 +36,7 @@ async function RecipeList({ searchParams }: { searchParams: PageProps<"/recipes"
             <div className="flex min-w-0 flex-col gap-1">
               <span className="font-heading text-lg leading-tight font-medium group-hover:text-primary">{r.title}</span>
               <span className="text-[13px] text-muted-foreground">
-                {[yieldText(r.yieldQty, r.yieldUnit), r.panLabel].filter(Boolean).join(" · ") || " "}
+                <Fractions text={[yieldText(r.yieldQty, r.yieldUnit), r.panLabel].filter(Boolean).join(" · ") || " "} />
               </span>
             </div>
           </Link>
@@ -51,9 +52,12 @@ function EmptyState() {
       <div aria-hidden className="grain size-[120px] rounded-[40px_60px_48px_56px]" />
       <h2 className="mt-3 text-2xl font-medium">No recipes yet</h2>
       <p className="max-w-[280px] text-[15px] text-muted-foreground">
-        Write your first one. Importing from a link or pasted text is coming soon.
+        Import one from a link or pasted text, or write your own.
       </p>
       <Button asChild size="lg" className="mt-3 w-full">
+        <Link href="/recipes/import">Import a recipe</Link>
+      </Button>
+      <Button asChild size="lg" variant="outline" className="w-full">
         <Link href="/recipes/new">Write a recipe</Link>
       </Button>
     </div>

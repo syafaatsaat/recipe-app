@@ -27,6 +27,8 @@ export interface StoredRecipe {
   versionCount: number;
   updatedAt: string;
   sourceType: "import" | "manual" | "paste";
+  sourceUrl: string | null;
+  sourceName: string | null;
   /** the linked ingredients, for render() and the editor's chips */
   catalog: Record<string, CatalogIngredient>;
 }
@@ -85,6 +87,8 @@ export async function getRecipe(db: Db, userId: string, id: string): Promise<Sto
       note: l.note,
       isOptional: l.isOptional,
       scalingRule: l.scalingRule,
+      rawText: l.rawText,
+      parseConfidence: l.parseConfidence,
     });
     const draftSections: RecipeDraft["sections"] =
       sections.length === 0
@@ -104,6 +108,7 @@ export async function getRecipe(db: Db, userId: string, id: string): Promise<Sto
       prepMin: r.prepMin,
       cookMin: r.cookMin,
       ovenTempC: num(r.ovenTempC),
+      ovenUnit: r.ovenTempC !== null && (r.ovenTempUnit === "F" || r.ovenTempUnit === "C") ? r.ovenTempUnit : null,
       sections: draftSections,
       steps: steps.map((s) => ({ body: s.body })),
     };
@@ -120,6 +125,8 @@ export async function getRecipe(db: Db, userId: string, id: string): Promise<Sto
       versionCount: versions.length,
       updatedAt: r.updatedAt,
       sourceType: r.sourceType,
+      sourceUrl: r.sourceUrl,
+      sourceName: r.sourceName,
       catalog,
     };
   });
@@ -150,6 +157,7 @@ function recipeColumns(draft: RecipeDraft) {
     cookMin: draft.cookMin,
     totalMin: draft.prepMin !== null && draft.cookMin !== null ? draft.prepMin + draft.cookMin : null,
     ovenTempC: str(draft.ovenTempC),
+    ovenTempUnit: draft.ovenTempC === null ? null : draft.ovenUnit,
   };
 }
 
@@ -182,6 +190,8 @@ async function writeChildren(tx: Tx, recipeId: string, draft: RecipeDraft) {
       note: l.note,
       isOptional: l.isOptional,
       scalingRule: l.scalingRule,
+      rawText: l.rawText,
+      parseConfidence: l.parseConfidence,
     })),
   );
   if (lines.length) await tx.insert(recipeIngredients).values(lines);
@@ -199,13 +209,31 @@ async function writeVersion(tx: Tx, recipeId: string, versionNo: number, draft: 
   await tx.update(recipes).set({ currentVersionId: v.id }).where(eq(recipes.id, recipeId));
 }
 
+export interface RecipeSource {
+  sourceType: "import" | "manual" | "paste";
+  /** the page it came from (doc §1: credit stays with the recipe) */
+  sourceUrl?: string | null;
+  sourceName?: string | null;
+}
+
 /** Creates the recipe and its version 1. Returns the new id. */
-export async function createRecipe(db: Db, userId: string, input: RecipeDraft): Promise<string> {
+export async function createRecipe(
+  db: Db,
+  userId: string,
+  input: RecipeDraft,
+  source: RecipeSource = { sourceType: "manual" },
+): Promise<string> {
   const draft = recipeDraftSchema.parse(input);
   return withUser(db, userId, async (tx) => {
     const [r] = await tx
       .insert(recipes)
-      .values({ ownerId: userId, sourceType: "manual", ...recipeColumns(draft) })
+      .values({
+        ownerId: userId,
+        sourceType: source.sourceType,
+        sourceUrl: source.sourceUrl ?? null,
+        sourceName: source.sourceName ?? null,
+        ...recipeColumns(draft),
+      })
       .returning({ id: recipes.id });
     await writeChildren(tx, r.id, draft);
     await writeVersion(tx, r.id, 1, draft, null);

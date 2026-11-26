@@ -1,10 +1,10 @@
 // The ingredient editor's form state, and its conversion to and from RecipeDraft.
 // Pure (no React), so the rules for turning typed text into a draft are unit-tested.
-import { formatQuantity, parseQuantity } from "@/lib/culinary/quantity";
+import { formatQuantity, parseQuantity, plainFractions } from "@/lib/culinary/quantity";
 import type { ScalingRule } from "@/lib/culinary/schemas";
 import type { UnitCode } from "@/lib/culinary/units";
 import type { CatalogIngredient } from "./render-input";
-import { cToFahrenheit, fahrenheitToC, recipeDraftSchema, type RecipeDraft } from "./schema";
+import { enteredOven, fahrenheitToC, recipeDraftSchema, type RecipeDraft } from "./schema";
 
 export interface LineState {
   key: string;
@@ -17,6 +17,9 @@ export interface LineState {
   // not editable in M3, kept so saving doesn't drop them
   note: string | null;
   scalingRule: ScalingRule | null;
+  /** import provenance (doc §3.4), carried through edits */
+  rawText: string | null;
+  parseConfidence: number | null;
 }
 export interface SectionState {
   key: string;
@@ -50,7 +53,7 @@ export const newKey = (prefix: string) => `${prefix}${++seq}`;
 export function newLine(): LineState {
   return {
     key: newKey("l"), amount: "", unitCode: null, name: "", ingredient: null,
-    preparation: "", isOptional: false, note: null, scalingRule: null,
+    preparation: "", isOptional: false, note: null, scalingRule: null, rawText: null, parseConfidence: null,
   };
 }
 
@@ -63,14 +66,16 @@ export function toEditorState(draft: RecipeDraft, catalog: Record<string, Catalo
     panId: draft.panId,
     prepMin: draft.prepMin === null ? "" : String(draft.prepMin),
     cookMin: draft.cookMin === null ? "" : String(draft.cookMin),
-    ovenTemp: draft.ovenTempC === null ? "" : String(cToFahrenheit(draft.ovenTempC)),
-    ovenUnit: "F",
+    // reopens in the unit it was entered in (°F when unknown, as before)
+    ovenTemp: draft.ovenTempC === null ? "" : String(enteredOven(draft.ovenTempC, draft.ovenUnit ?? "F")),
+    ovenUnit: draft.ovenUnit ?? "F",
     sections: draft.sections.map((s) => ({
       key: newKey("s"),
       title: s.title ?? "",
       lines: s.ingredients.map((l) => ({
         key: newKey("l"),
-        amount: formatQuantity(l.quantity, l.quantityMax),
+        // typed form ("1 1/2"): the glyphs are hard to read in a text field (parseQuantity reads both)
+        amount: plainFractions(formatQuantity(l.quantity, l.quantityMax)),
         unitCode: l.unitCode,
         name: l.name,
         ingredient: l.ingredientId ? (catalog[l.ingredientId] ?? null) : null,
@@ -78,6 +83,8 @@ export function toEditorState(draft: RecipeDraft, catalog: Record<string, Catalo
         isOptional: l.isOptional,
         note: l.note,
         scalingRule: l.scalingRule,
+        rawText: l.rawText,
+        parseConfidence: l.parseConfidence,
       })),
     })),
     steps: draft.steps.map((s) => ({ key: newKey("t"), body: s.body })),
@@ -133,6 +140,8 @@ export function toDraft(s: EditorState): { ok: true; draft: RecipeDraft } | { ok
         note: l.note,
         isOptional: l.isOptional,
         scalingRule: l.scalingRule,
+        rawText: l.rawText,
+        parseConfidence: l.parseConfidence,
       };
     }),
   }));
@@ -149,6 +158,7 @@ export function toDraft(s: EditorState): { ok: true; draft: RecipeDraft } | { ok
     prepMin: wholeMinutes(s.prepMin, "prepMin", errors),
     cookMin: wholeMinutes(s.cookMin, "cookMin", errors),
     ovenTempC,
+    ovenUnit: ovenTempC === null ? null : s.ovenUnit,
     sections,
     steps: s.steps.filter((t) => t.body.trim()).map((t) => ({ body: t.body })),
   };

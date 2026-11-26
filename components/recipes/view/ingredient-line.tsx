@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { Fractions } from "@/components/fractions";
 import type { RenderedIngredient } from "@/lib/culinary";
 import type { RenderLine } from "@/lib/recipes/render-input";
 
@@ -12,7 +13,7 @@ export function IngredientLine({ line, amount }: { line: RenderLine; amount: Ren
           !text ? "text-muted-foreground" : amount?.leaveningWarning ? "font-medium text-destructive" : "font-medium",
         )}
       >
-        {text ?? "to taste"}
+        {text ? <Fractions text={text} /> : "to taste"}
       </span>
       <span>
         {!amount?.amountIncludesName && line.input.name}
@@ -20,7 +21,7 @@ export function IngredientLine({ line, amount }: { line: RenderLine; amount: Ren
         {line.isOptional && <span className="text-muted-foreground"> (optional)</span>}
         {line.note && <span className="block text-[13px] text-muted-foreground">{line.note}</span>}
         {amount?.original && (
-          <span className="mt-[3px] block font-mono text-xs text-muted-foreground">orig. {amount.original}</span>
+          <span className="mt-[3px] block font-mono text-xs text-muted-foreground">orig. <Fractions text={amount.original} /></span>
         )}
         {amount?.leaveningWarning && (
           <span className="mt-0.5 block text-[13px] text-destructive">May not rise the same at this size</span>

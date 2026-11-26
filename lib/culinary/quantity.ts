@@ -74,6 +74,16 @@ const notANumber = (): QuantityResult => ({ ok: false, error: "Use a number like
 const tooBig = (): QuantityResult => ({ ok: false, error: "That amount is too large." });
 
 /** The editor's text for a stored amount: 1.5 → "1½", (2, 3) → "2–3", null → "". */
+const GLYPH_VALUE: Record<string, string> = {
+  "¼": "1/4", "½": "1/2", "¾": "3/4", "⅓": "1/3", "⅔": "2/3", "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8",
+  "⅕": "1/5", "⅖": "2/5", "⅗": "3/5", "⅘": "4/5", "⅙": "1/6", "⅚": "5/6",
+};
+
+/** "1½–2¾" → "1 1/2–2 3/4": for text fields, where fraction glyphs are hard to read and to type. */
+export function plainFractions(text: string): string {
+  return text.replace(/(\d?)([¼½¾⅓⅔⅛⅜⅝⅞⅕⅖⅗⅘⅙⅚])/g, (_, whole: string, g: string) => (whole ? `${whole} ` : "") + GLYPH_VALUE[g]);
+}
+
 export function formatQuantity(quantity: number | null, quantityMax: number | null = null): string {
   if (quantity === null) return "";
   const q = formatUSNumber(quantity);

@@ -5,6 +5,7 @@
 // syncs with useSearchParams: no server round-trip, and Back still leaves the recipe.
 import { useSearchParams } from "next/navigation";
 import { useId, useState } from "react";
+import { Fractions } from "@/components/fractions";
 import { minutesText } from "@/components/recipes/format";
 import { RecipeMenu } from "@/components/recipes/recipe-menu";
 import { parseScaleParams, render, sourceSystem, toScaleParams, type RenderInput, type ScaleState, type UnitSystem } from "@/lib/culinary";
@@ -20,6 +21,14 @@ import { ScaleSheet } from "./scale-sheet";
 import { Segmented } from "./segmented";
 import { WarningList } from "./warning-list";
 
+const sourceHost = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+};
+
 const UNIT_OPTIONS = [
   { value: "us", label: "US" },
   { value: "metric", label: "Metric" },
@@ -32,6 +41,7 @@ export function RecipeView({
   pans,
   recipeId,
   versionCount,
+  credit = null,
   children,
 }: {
   draft: RecipeDraft;
@@ -40,6 +50,8 @@ export function RecipeView({
   pans: PanOption[];
   recipeId: string;
   versionCount: number;
+  /** where an imported recipe came from, for the credit line */
+  credit?: { url: string | null; name: string | null } | null;
   /** method and footer (server-rendered) */
   children: React.ReactNode;
 }) {
@@ -72,7 +84,7 @@ export function RecipeView({
   const times = [
     draft.prepMin !== null && `Prep ${minutesText(draft.prepMin)}`,
     draft.cookMin !== null && `Cook ${minutesText(draft.cookMin)}`,
-    draft.ovenTempC !== null && `Oven ${ovenText(draft.ovenTempC, units)}`,
+    draft.ovenTempC !== null && `Oven ${ovenText(draft.ovenTempC, units, draft.ovenUnit)}`,
   ].filter(Boolean);
 
   return (
@@ -86,7 +98,7 @@ export function RecipeView({
           <p>
             {yieldText && (
               <>
-                Makes <span className="font-mono text-foreground">{yieldText}</span>
+                Makes <span className="font-mono text-foreground"><Fractions text={yieldText} /></span>
               </>
             )}
             {yieldText && panLabel && " · "}
@@ -94,6 +106,13 @@ export function RecipeView({
           </p>
         )}
         {times.length > 0 && <p className="font-mono text-[13px]">{times.join(" · ")}</p>}
+        {credit?.url && (
+          <p className="text-[13px]">
+            <a href={credit.url} target="_blank" rel="noopener noreferrer nofollow" className="text-muted-foreground">
+              From {credit.name ?? sourceHost(credit.url)} ↗
+            </a>
+          </p>
+        )}
         {draft.description && <p className="pt-2 text-[15px] leading-relaxed text-foreground">{draft.description}</p>}
       </div>
 

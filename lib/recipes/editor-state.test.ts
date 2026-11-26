@@ -44,12 +44,21 @@ describe("toEditorState → toDraft", () => {
   it("shows stored values as typed text", () => {
     const s = state();
     expect(s).toMatchObject({ yieldQty: "12", prepMin: "15", ovenTemp: "350", ovenUnit: "F" });
-    expect(s.sections[0].lines.map((l) => l.amount)).toEqual(["1½", "1–2", ""]);
+    expect(s.sections[0].lines.map((l) => l.amount)).toEqual(["1 1/2", "1–2", ""]);
     expect(s.sections[0].lines[0].ingredient).toEqual(FLOUR);
   });
 
-  it("round-trips a draft unchanged (oven to the nearest °F)", () => {
-    expect(ok(state())).toEqual({ ...draft, ovenTempC: 176.7 });
+  it("round-trips a draft unchanged (an oven of unknown unit is taken as °F)", () => {
+    expect(ok(state())).toEqual({ ...draft, ovenTempC: 176.7, ovenUnit: "F" });
+  });
+
+  it("reopens the oven in the unit it was entered in", () => {
+    const c = toEditorState({ ...draft, ovenTempC: 180, ovenUnit: "C" }, {});
+    expect(c).toMatchObject({ ovenTemp: "180", ovenUnit: "C" });
+    expect(ok(c)).toMatchObject({ ovenTempC: 180, ovenUnit: "C" });
+    // °F comes back to the degree, not rounded to 5
+    const f = toEditorState({ ...draft, ovenTempC: 177.8, ovenUnit: "F" }, {});
+    expect(f).toMatchObject({ ovenTemp: "352", ovenUnit: "F" });
   });
 
   it("drops blank lines and empty steps, keeps °C as typed", () => {
@@ -63,7 +72,7 @@ describe("toEditorState → toDraft", () => {
     const d = ok(s);
     expect(d.sections[0].ingredients).toHaveLength(3);
     expect(d.steps).toHaveLength(2);
-    expect(d).toMatchObject({ ovenTempC: 180, prepMin: null, yieldQty: null });
+    expect(d).toMatchObject({ ovenTempC: 180, ovenUnit: "C", prepMin: null, yieldQty: null });
   });
 
   it("reports field errors by key", () => {

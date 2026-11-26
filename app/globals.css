@@ -119,3 +119,33 @@
   background-size: 7px 7px, 11px 11px;
   background-position: 0 0, 3px 5px;
 }
+
+/* components/fractions.tsx: numerator raised, "/", denominator, in the surrounding
+   font (DM Mono has "/" but no fraction slash). The generated text has empty alt text
+   ( / "") so screen readers read the hidden glyph instead. */
+.frac {
+  position: relative;
+  white-space: nowrap;
+  margin-left: 0.08em;
+  font-size: 0.78em;
+  letter-spacing: -0.06em;
+}
+.frac-mixed {
+  margin-left: 0.22em;
+}
+.frac::before {
+  content: attr(data-n) / "";
+  position: relative;
+  top: -0.42em;
+}
+.frac::after {
+  content: "/" attr(data-d) / "";
+}
+.frac-glyph {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

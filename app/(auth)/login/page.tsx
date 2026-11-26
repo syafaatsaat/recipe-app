@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Sign in" };
 async function Form({ searchParams }: { searchParams: PageProps<"/login">["searchParams"] }) {
   const sp = await searchParams;
   return (
-    <SignInForm next={typeof sp.next === "string" ? sp.next : undefined} linkError={sp.error === "link"} />
+    <SignInForm next={typeof sp.next === "string" ? sp.next : undefined} notice={typeof sp.error === "string" ? sp.error : undefined} />
   );
 }
 

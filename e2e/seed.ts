@@ -29,6 +29,7 @@ export async function seedBrownies(email: string): Promise<string> {
       prepMin: 15,
       cookMin: 25,
       ovenTempC: 176.7,
+      ovenUnit: "F",
       sections: [
         {
           title: null,
@@ -48,6 +49,16 @@ export async function seedBrownies(email: string): Promise<string> {
       steps: [{ body: "Heat the oven. Line the pan with baking paper." }, { body: "Mix, spread in the pan and bake until just set." }],
     };
     return await createRecipe(db, userId, draft);
+  } finally {
+    await client.end();
+  }
+}
+
+/** Deletes an account behind its open session, like `pnpm db:reset` or a deleted user. */
+export async function deleteAccount(email: string): Promise<void> {
+  const { db, client } = createDb(URL);
+  try {
+    await db.execute(sql`delete from auth.users where email = ${email}`);
   } finally {
     await client.end();
   }

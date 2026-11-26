@@ -37,7 +37,7 @@ test("chips scale amounts and write the URL; units toggle; reset returns the ori
   await page.getByRole("button", { name: "Metric" }).click();
   await expect(page).toHaveURL(/\?mode=factor&f=2&units=metric$/);
   await expect(amountOf(page, "granulated sugar")).toHaveText("495 g");
-  await expect(page.getByText(/Oven 175 °C/)).toBeVisible();
+  await expect(page.getByText(/Oven 350 °F \(175 °C\)/)).toBeVisible();
 
   await page.getByRole("button", { name: "Reset to original" }).click();
   await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/);

@@ -100,3 +100,27 @@ test("another account can't open my recipe", async ({ page }) => {
   await expect(page.getByText(/could not be found|404/i).first()).toBeVisible();
   await expect(page.getByText("Private recipe")).toHaveCount(0);
 });
+
+test("an oven temperature entered in °C shows in °C, even in a recipe measured in cups", async ({ page }) => {
+  await signUp(page, uniqueEmail("oven-c"));
+  await page.goto("/recipes/new");
+  await page.getByLabel("Title").filter({ visible: true }).fill("Celsius cake");
+  await page.getByLabel("Oven", { exact: true }).filter({ visible: true }).fill("180");
+  await page.getByLabel("Oven units").filter({ visible: true }).selectOption("C");
+  await page.getByLabel("Amount").filter({ visible: true }).first().fill("1");
+  await page.getByLabel("Unit", { exact: true }).filter({ visible: true }).first().selectOption("cup");
+  await page.getByLabel("Ingredient", { exact: true }).filter({ visible: true }).first().fill("flour");
+  await page.getByRole("button", { name: "Save" }).click();
+
+  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/);
+  // cups make the page US, so the conversion comes along; Metric shows it as entered
+  await expect(page.getByText(/Oven 180 °C \(355 °F\)/)).toBeVisible();
+  await page.getByRole("button", { name: "Metric" }).click();
+  await expect(page.getByText(/Oven 180 °C$/)).toBeVisible();
+
+  // the editor reopens it in °C
+  await page.getByRole("button", { name: "Recipe options" }).click();
+  await page.getByRole("menuitem", { name: "Edit recipe" }).click();
+  await expect(page.getByLabel("Oven", { exact: true }).filter({ visible: true })).toHaveValue("180");
+  await expect(page.getByLabel("Oven units").filter({ visible: true })).toHaveValue("C");
+});

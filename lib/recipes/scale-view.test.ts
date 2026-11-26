@@ -168,9 +168,18 @@ describe("meta text", () => {
     expect(scaledYieldText(null, "squares", 2, "factor")).toBeNull();
   });
 
-  it("shows the oven in the selected system", () => {
+  it("shows the oven in the selected system when its entered unit is unknown", () => {
     expect(ovenText(176.7, "us")).toBe("350 °F");
     expect(ovenText(176.7, "metric")).toBe("175 °C");
+  });
+
+  it("shows the oven as entered, with the conversion when the page shows the other system", () => {
+    expect(ovenText(180, "metric", "C")).toBe("180 °C");
+    expect(ovenText(182, "metric", "C")).toBe("182 °C"); // as typed, not rounded
+    expect(ovenText(180, "us", "C")).toBe("180 °C (355 °F)");
+    expect(ovenText(176.7, "us", "F")).toBe("350 °F");
+    expect(ovenText(177.8, "us", "F")).toBe("352 °F");
+    expect(ovenText(177.8, "metric", "F")).toBe("352 °F (180 °C)");
   });
 });
 
