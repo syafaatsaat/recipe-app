@@ -35,7 +35,7 @@ export function parsePaste(text: string): ExtractedRecipe {
     }
     const y = YIELD_LINE.exec(line);
     if (y && !yieldText && line.length <= 60) {
-      yieldText = y[1].trim();
+      yieldText = line.trim(); // whole line: parseYield reads "Serves 8" as 8 servings
       continue;
     }
     if (mode === "start" && title === null && !looksLikeIngredient(line) && line.length <= 100 && !line.endsWith(":")) {

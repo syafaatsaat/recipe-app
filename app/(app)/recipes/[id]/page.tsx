@@ -35,6 +35,7 @@ async function Recipe({ params }: { params: PageProps<"/recipes/[id]">["params"]
       pans={pans}
       recipeId={recipe.id}
       versionCount={recipe.versionCount}
+      credit={recipe.sourceType === "manual" ? null : { url: recipe.sourceUrl, name: recipe.sourceName }}
     >
       <div>
         {draft.steps.length > 0 && (

@@ -38,8 +38,8 @@ export function NewRecipeMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64 p-1.5">
-        <Item title="Import from a link" hint="Coming soon" />
-        <Item title="Paste recipe text" hint="Coming soon" />
+        <Item title="Import from a link" hint="Most recipe sites work" href="/recipes/import" />
+        <Item title="Paste recipe text" hint="From a blog, a note or an email" href="/recipes/import?paste=1" />
         <Item title="Write from scratch" hint="Type it line by line" href="/recipes/new" />
       </DropdownMenuContent>
     </DropdownMenu>

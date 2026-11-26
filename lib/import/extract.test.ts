@@ -119,7 +119,7 @@ describe("helpers", () => {
 describe("parsePaste", () => {
   it("follows the headings, sections, yield and step numbers", () => {
     const r = parsePaste(PASTE_WITH_HEADINGS);
-    expect(r).toMatchObject({ method: "paste", title: "Lemon drizzle loaf", yieldText: "8", url: null });
+    expect(r).toMatchObject({ method: "paste", title: "Lemon drizzle loaf", yieldText: "Serves 8", url: null });
     expect(r.ingredients.map((i) => [i.section, i.text])).toEqual([
       [null, "225g self-raising flour"],
       [null, "225g caster sugar"],
@@ -163,6 +163,7 @@ describe("toImportDraft", () => {
     const { draft } = toImportDraft(parsePaste(PASTE_WITH_HEADINGS));
     expect(draft.sections.map((s) => s.title)).toEqual(["Ingredients", "For the drizzle"]);
     expect(draft.ovenTempC).toBe(180);
+    expect(draft).toMatchObject({ yieldQty: 8, yieldUnit: "servings" });
     expect(recipeDraftSchema.safeParse(draft).success).toBe(true);
   });
 
