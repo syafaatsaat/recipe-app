@@ -108,6 +108,7 @@ export async function getRecipe(db: Db, userId: string, id: string): Promise<Sto
       prepMin: r.prepMin,
       cookMin: r.cookMin,
       ovenTempC: num(r.ovenTempC),
+      ovenUnit: r.ovenTempC !== null && (r.ovenTempUnit === "F" || r.ovenTempUnit === "C") ? r.ovenTempUnit : null,
       sections: draftSections,
       steps: steps.map((s) => ({ body: s.body })),
     };
@@ -156,6 +157,7 @@ function recipeColumns(draft: RecipeDraft) {
     cookMin: draft.cookMin,
     totalMin: draft.prepMin !== null && draft.cookMin !== null ? draft.prepMin + draft.cookMin : null,
     ovenTempC: str(draft.ovenTempC),
+    ovenTempUnit: draft.ovenTempC === null ? null : draft.ovenUnit,
   };
 }
 

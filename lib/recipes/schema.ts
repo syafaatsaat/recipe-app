@@ -63,6 +63,8 @@ export const recipeDraftSchema = z
     prepMin: minutes,
     cookMin: minutes,
     ovenTempC: z.number().positive().max(400).nullable(),
+    /** the unit it was entered in, shown that way (doc §3.10); null = unknown. Default keeps v1 snapshots readable. */
+    ovenUnit: z.enum(["F", "C"]).nullable().default(null),
     sections: z.array(sectionSchema).min(1).max(20),
     steps: z.array(stepSchema).max(100),
   })
@@ -88,7 +90,7 @@ export function emptyLine(): IngredientLine {
 export function emptyDraft(): RecipeDraft {
   return {
     title: "", description: null, yieldQty: null, yieldUnit: null, panId: null,
-    prepMin: null, cookMin: null, ovenTempC: null,
+    prepMin: null, cookMin: null, ovenTempC: null, ovenUnit: null,
     sections: [{ title: null, ingredients: [] }],
     steps: [],
   };
@@ -97,6 +99,8 @@ export function emptyDraft(): RecipeDraft {
 /** °F ↔ °C for the oven field; stored in °C (recipes.oven_temp_c), shown to the nearest 5. */
 export const fahrenheitToC = (f: number) => Math.round((((f - 32) * 5) / 9) * 10) / 10;
 export const cToFahrenheit = (c: number) => Math.round(((c * 9) / 5 + 32) / 5) * 5;
+/** Back to what was typed: °F to the degree (350 → 176.7 °C → 350, 352 → 177.8 → 352), °C to 0.1. */
+export const enteredOven = (c: number, unit: "F" | "C") => (unit === "F" ? Math.round((c * 9) / 5 + 32) : Math.round(c * 10) / 10);
 
 /** Grams per cup → g/ml, the stored density (doc §3.7). */
 export const gramsPerCupToDensity = (g: number) => Math.round((g / UNITS.cup.toBase) * 10_000) / 10_000;

@@ -29,6 +29,7 @@ export async function seedBrownies(email: string): Promise<string> {
       prepMin: 15,
       cookMin: 25,
       ovenTempC: 176.7,
+      ovenUnit: "F",
       sections: [
         {
           title: null,

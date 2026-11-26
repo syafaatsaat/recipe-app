@@ -55,6 +55,7 @@
    - `getUser()` calls `await connection()` first: `getClaims()` reads the clock, which Next forbids while prerendering.
    - Email links (sign-up confirmation, password reset) land on `/auth/confirm`, which accepts both the PKCE `?code=` and the `?token_hash=&type=` styles.
 9. **"Pinch", "dash", "to taste" and "as needed" have no amount** (decided 2026-11-26). The parser stores them like a to-taste line: `quantity` null, with the word kept in `note` ("pinch flaky salt"). They never scale or convert. There's no `pinch` unit, so `UNIT_CODES` and the `unit_code` CHECK are unchanged.
+10. **The oven temperature keeps the unit it was entered in** (decided 2026-11-26, after a recipe entered at 180 °C showed as 355 °F because its ingredients were in cups). `oven_temp_c` stays the canonical value; `oven_temp_unit` ('F'/'C', null for recipes saved before) records what was typed, and the draft carries it as `ovenUnit` (defaults to null, so v1 snapshots still read). The recipe page shows it as entered, adding the conversion in brackets when the page shows the other unit system: "180 °C (355 °F)" in a US view, "180 °C" in Metric. Conversions round to 5°; the entered value is shown exactly (°F to the degree). The editor reopens in the entered unit; imports record the unit the method used.
 
 ## 4. Schema (Postgres)
 
@@ -66,6 +67,7 @@
 | `…001_rls_policies.sql` | RLS on every table, plus policies |
 | `…002_triggers.sql` | profile row on signup, `recipes.updated_at` |
 | `…003_import_jobs_paste.sql` | `import_jobs.url` nullable for pasted text, with a CHECK that link imports keep one (M5) |
+| `…004_recipes_oven_unit.sql` | `recipes.oven_temp_unit` ('F'/'C'), only with a temperature (§3.10, M5) |
 
 Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks) and [`import_jobs.test.sql`](../supabase/tests/import_jobs.test.sql) (5). Seed: [`supabase/seed.sql`](../supabase/seed.sql).
 

@@ -83,7 +83,7 @@ export function RecipeView({
   const times = [
     draft.prepMin !== null && `Prep ${minutesText(draft.prepMin)}`,
     draft.cookMin !== null && `Cook ${minutesText(draft.cookMin)}`,
-    draft.ovenTempC !== null && `Oven ${ovenText(draft.ovenTempC, units)}`,
+    draft.ovenTempC !== null && `Oven ${ovenText(draft.ovenTempC, units, draft.ovenUnit)}`,
   ].filter(Boolean);
 
   return (

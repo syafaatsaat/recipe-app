@@ -4,7 +4,7 @@ import { formatQuantity, parseQuantity } from "@/lib/culinary/quantity";
 import type { ScalingRule } from "@/lib/culinary/schemas";
 import type { UnitCode } from "@/lib/culinary/units";
 import type { CatalogIngredient } from "./render-input";
-import { cToFahrenheit, fahrenheitToC, recipeDraftSchema, type RecipeDraft } from "./schema";
+import { enteredOven, fahrenheitToC, recipeDraftSchema, type RecipeDraft } from "./schema";
 
 export interface LineState {
   key: string;
@@ -66,8 +66,9 @@ export function toEditorState(draft: RecipeDraft, catalog: Record<string, Catalo
     panId: draft.panId,
     prepMin: draft.prepMin === null ? "" : String(draft.prepMin),
     cookMin: draft.cookMin === null ? "" : String(draft.cookMin),
-    ovenTemp: draft.ovenTempC === null ? "" : String(cToFahrenheit(draft.ovenTempC)),
-    ovenUnit: "F",
+    // reopens in the unit it was entered in (°F when unknown, as before)
+    ovenTemp: draft.ovenTempC === null ? "" : String(enteredOven(draft.ovenTempC, draft.ovenUnit ?? "F")),
+    ovenUnit: draft.ovenUnit ?? "F",
     sections: draft.sections.map((s) => ({
       key: newKey("s"),
       title: s.title ?? "",
@@ -156,6 +157,7 @@ export function toDraft(s: EditorState): { ok: true; draft: RecipeDraft } | { ok
     prepMin: wholeMinutes(s.prepMin, "prepMin", errors),
     cookMin: wholeMinutes(s.cookMin, "cookMin", errors),
     ovenTempC,
+    ovenUnit: ovenTempC === null ? null : s.ovenUnit,
     sections,
     steps: s.steps.filter((t) => t.body.trim()).map((t) => ({ body: t.body })),
   };

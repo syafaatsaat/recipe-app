@@ -6,7 +6,7 @@ import {
   type BakeHint, type Pan, type RenderedRecipe, type RenderInput, type ScaleState, type UnitSystem, type Warning,
 } from "@/lib/culinary";
 import { formatUSNumber } from "@/lib/culinary/format";
-import { cToFahrenheit } from "./schema";
+import { cToFahrenheit, enteredOven } from "./schema";
 
 // ── Scale bar ────────────────────────────────────────────────────────────────
 
@@ -219,8 +219,16 @@ export function scaledYieldText(
 }
 
 /** The oven temperature in the selected system: 350 °F or 175 °C. */
-export function ovenText(c: number, units: UnitSystem): string {
-  return units === "us" ? `${cToFahrenheit(c)} °F` : `${Math.round(c / 5) * 5} °C`;
+/**
+ * The oven line (doc §3.10): as entered, plus the conversion in brackets when the page
+ * shows the other unit system ("180 °C (355 °F)"). Conversions round to 5°. When the
+ * entered unit is unknown (saved before it was kept), it follows the unit system.
+ */
+export function ovenText(c: number, units: UnitSystem, entered: "F" | "C" | null = null): string {
+  const converted = units === "us" ? `${cToFahrenheit(c)} °F` : `${Math.round(c / 5) * 5} °C`;
+  if (!entered) return converted;
+  const asEntered = `${enteredOven(c, entered)} °${entered}`;
+  return (entered === "F") === (units === "us") ? asEntered : `${asEntered} (${converted})`;
 }
 
 // ── Scale sheet: factor input ────────────────────────────────────────────────

@@ -35,13 +35,18 @@ export function parseYield(text: string | null): { qty: number | null; unit: str
 
 /** The first oven temperature mentioned in the method ("350°F", "180 °C", "350 degrees"). */
 export function ovenTempFromSteps(steps: readonly string[]): number | null {
+  return ovenFromSteps(steps)?.c ?? null;
+}
+
+/** …and the unit it was written in, so the recipe shows it the same way (doc §3.10). */
+export function ovenFromSteps(steps: readonly string[]): { c: number; unit: "F" | "C" } | null {
   for (const step of steps) {
     const m = /(\d{3})\s*(?:°|º|degrees?|deg\.?)\s*(f|c|fahrenheit|celsius)?\b/i.exec(step) ?? /(\d{3})\s*(f|c)\b/i.exec(step);
     if (!m) continue;
     const n = Number(m[1]);
     const unit = (m[2] ?? (n > 260 ? "f" : "c")).toLowerCase()[0];
     const c = unit === "f" ? fahrenheitToC(n) : n;
-    if (c >= 90 && c <= 300) return c;
+    if (c >= 90 && c <= 300) return { c, unit: unit === "f" ? "F" : "C" };
   }
   return null;
 }
@@ -64,6 +69,7 @@ export function toImportDraft(x: ExtractedRecipe): ImportDraft {
   if (kept.length > 1) kept.forEach((g, i) => (g.title ??= i === 0 ? "Ingredients" : `Part ${i + 1}`));
 
   const y = parseYield(x.yieldText);
+  const oven = ovenFromSteps(x.steps);
   const steps = x.steps.slice(0, MAX_STEPS).map((body) => ({ body: body.slice(0, 5000) }));
 
   const draft: RecipeDraft = {
@@ -74,7 +80,8 @@ export function toImportDraft(x: ExtractedRecipe): ImportDraft {
     panId: null,
     prepMin: x.prepMin,
     cookMin: x.cookMin,
-    ovenTempC: ovenTempFromSteps(x.steps),
+    ovenTempC: oven?.c ?? null,
+    ovenUnit: oven?.unit ?? null,
     sections: kept.map((g) => ({
       title: g.title ? g.title.slice(0, 100) : null,
       ingredients: g.lines.map((p) => ({

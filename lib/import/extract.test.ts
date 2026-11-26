@@ -215,7 +215,7 @@ describe("toImportDraft", () => {
   it("builds a valid draft with parse results alongside", () => {
     const { draft, parsed, source } = toImportDraft(extractRecipe(JSONLD_GRAPH, "https://example.com/cake")!);
     expect(recipeDraftSchema.safeParse(draft).success).toBe(true);
-    expect(draft).toMatchObject({ title: "Lemon olive oil cake", yieldQty: 8, yieldUnit: "slices", prepMin: 15, cookMin: 45, ovenTempC: 176.7 });
+    expect(draft).toMatchObject({ title: "Lemon olive oil cake", yieldQty: 8, yieldUnit: "slices", prepMin: 15, cookMin: 45, ovenTempC: 176.7, ovenUnit: "F" });
     const lines = draft.sections[0].ingredients;
     expect(lines[4]).toMatchObject({ quantity: 4, unitCode: "oz", name: "butter", rawText: "1 stick butter, softened", parseConfidence: 0.97 });
     expect(lines[6]).toMatchObject({ quantity: null, note: "pinch", name: "flaky salt" });
@@ -226,7 +226,7 @@ describe("toImportDraft", () => {
   it("titles every section once there is more than one", () => {
     const { draft } = toImportDraft(parsePaste(PASTE_WITH_HEADINGS));
     expect(draft.sections.map((s) => s.title)).toEqual(["Ingredients", "For the drizzle"]);
-    expect(draft.ovenTempC).toBe(180);
+    expect(draft).toMatchObject({ ovenTempC: 180, ovenUnit: "C" });
     expect(draft).toMatchObject({ yieldQty: 8, yieldUnit: "servings" });
     expect(recipeDraftSchema.safeParse(draft).success).toBe(true);
   });

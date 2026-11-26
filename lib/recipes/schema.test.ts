@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cToFahrenheit,
+  enteredOven,
   emptyDraft,
   emptyLine,
   fahrenheitToC,
@@ -65,6 +66,12 @@ describe("snapshot", () => {
     expect(recipeSnapshotSchema.parse(JSON.parse(JSON.stringify({ schema: 1, draft: d })))).toEqual({ schema: 1, draft: d });
     expect(recipeSnapshotSchema.safeParse({ schema: 2, draft: d }).success).toBe(false);
   });
+
+  it("reads a version saved before the oven unit was kept", () => {
+    const old: Record<string, unknown> = { ...recipeDraftSchema.parse({ ...draft(), ovenTempC: 176.7 }) };
+    delete old.ovenUnit;
+    expect(recipeSnapshotSchema.parse({ schema: 1, draft: old }).draft.ovenUnit).toBeNull();
+  });
 });
 
 describe("conversions", () => {
@@ -72,6 +79,10 @@ describe("conversions", () => {
     expect(fahrenheitToC(350)).toBe(176.7);
     expect(cToFahrenheit(176.7)).toBe(350);
     expect(cToFahrenheit(180)).toBe(355);
+    expect(enteredOven(176.7, "F")).toBe(350);
+    expect(enteredOven(177.8, "F")).toBe(352);
+    expect(enteredOven(180, "C")).toBe(180);
+    expect(enteredOven(182.5, "C")).toBe(182.5);
   });
 
   it("grams per cup → g/ml with 4 decimals (fits numeric(6,4))", () => {
