@@ -10,8 +10,8 @@
 - [x] **M1: `lib/culinary/`** (units, conversion, pans, rounding, scaling, render, URL state). 186 tests at merge, ≥95% coverage enforced. Display rules: doc §5. Merged.
 - [x] **M2: Design pass 1.** Direction E, colour/type tokens mapped to shadcn variables, four screens and their components: doc §8, canvas in `docs/design/`. Stick→oz and user ingredients decided (doc §3.6–3.7). Merged.
 - [x] **M3: auth + manual recipe CRUD** (doc §6 step 3). Email + password (doc §3.8), recipe list/view/editor, user ingredients, versions on every save, keep-alive cron. Merged.
-- [x] **M4: scaling + units on the recipe page** (doc §6 step 4). Chips, scale sheet (factor/yield/pan), US/Metric, Reset, warnings, copy link; state in the URL. Awaiting review.
-- [ ] **M5 next:** importer (JSON-LD, line parser, review screen, LLM fallback; doc §6 step 5). Gets planned when it starts.
+- [x] **M4: scaling + units on the recipe page** (doc §6 step 4). Chips, scale sheet (factor/yield/pan), US/Metric, Reset, warnings, copy link; state in the URL. Merged.
+- [ ] **M5 in progress** (branch `m5-import`): import from a link (JSON-LD, microdata) or pasted text, the ingredient-line parser, the review screen (doc §6 step 5). The LLM fallback is M5b.
 - Later milestones follow doc §6.
 
 ## Non-negotiable rules

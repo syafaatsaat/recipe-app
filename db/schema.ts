@@ -16,8 +16,8 @@ export const profiles = pgTable("profiles", {
 	unitSystem: text("unit_system").default('us').notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	pgPolicy("profiles_select_own", { as: "permissive", for: "select", to: ["authenticated"], using: sql`(id = ( SELECT auth.uid() AS uid))` }),
-	pgPolicy("profiles_update_own", { as: "permissive", for: "update", to: ["authenticated"] }),
+	pgPolicy("profiles_update_own", { as: "permissive", for: "update", to: ["authenticated"], using: sql`(id = ( SELECT auth.uid() AS uid))`, withCheck: sql`(id = ( SELECT auth.uid() AS uid))`  }),
+	pgPolicy("profiles_select_own", { as: "permissive", for: "select", to: ["authenticated"] }),
 	check("profiles_unit_system_check", sql`unit_system = ANY (ARRAY['us'::text, 'metric'::text])`),
 ]);
 
@@ -34,10 +34,10 @@ export const ingredients = pgTable("ingredients", {
 }, (table) => [
 	index("ingredients_aliases_idx").using("gin", table.aliases.asc().nullsLast().op("array_ops")),
 	unique("ingredients_owner_id_name_key").on(table.ownerId, table.name),
-	pgPolicy("ingredients_select", { as: "permissive", for: "select", to: ["anon", "authenticated"], using: sql`((owner_id IS NULL) OR (owner_id = ( SELECT auth.uid() AS uid)))` }),
-	pgPolicy("ingredients_insert_own", { as: "permissive", for: "insert", to: ["authenticated"] }),
+	pgPolicy("ingredients_delete_own", { as: "permissive", for: "delete", to: ["authenticated"], using: sql`(owner_id = ( SELECT auth.uid() AS uid))` }),
 	pgPolicy("ingredients_update_own", { as: "permissive", for: "update", to: ["authenticated"] }),
-	pgPolicy("ingredients_delete_own", { as: "permissive", for: "delete", to: ["authenticated"] }),
+	pgPolicy("ingredients_insert_own", { as: "permissive", for: "insert", to: ["authenticated"] }),
+	pgPolicy("ingredients_select", { as: "permissive", for: "select", to: ["anon", "authenticated"] }),
 	check("ingredients_density_g_per_ml_check", sql`density_g_per_ml > (0)::numeric`),
 	check("ingredients_each_g_check", sql`each_g > (0)::numeric`),
 ]);
@@ -55,17 +55,17 @@ export const pans = pgTable("pans", {
 	cupCount: smallint("cup_count"),
 }, (table) => [
 	index("pans_owner_id_idx").using("btree", table.ownerId.asc().nullsLast().op("uuid_ops")),
-	pgPolicy("pans_select", { as: "permissive", for: "select", to: ["anon", "authenticated"], using: sql`((owner_id IS NULL) OR (owner_id = ( SELECT auth.uid() AS uid)))` }),
-	pgPolicy("pans_insert_own", { as: "permissive", for: "insert", to: ["authenticated"] }),
+	pgPolicy("pans_delete_own", { as: "permissive", for: "delete", to: ["authenticated"], using: sql`(owner_id = ( SELECT auth.uid() AS uid))` }),
 	pgPolicy("pans_update_own", { as: "permissive", for: "update", to: ["authenticated"] }),
-	pgPolicy("pans_delete_own", { as: "permissive", for: "delete", to: ["authenticated"] }),
-	check("pans_check", sql`((shape = ANY (ARRAY['round'::pan_shape, 'springform'::pan_shape, 'skillet'::pan_shape])) AND (diameter_cm IS NOT NULL)) OR ((shape = ANY (ARRAY['square'::pan_shape, 'rectangle'::pan_shape, 'loaf'::pan_shape, 'sheet'::pan_shape])) AND (width_cm IS NOT NULL) AND (length_cm IS NOT NULL)) OR ((shape = ANY (ARRAY['bundt'::pan_shape, 'tube'::pan_shape])) AND (volume_ml IS NOT NULL)) OR ((shape = 'muffin'::pan_shape) AND (cup_count IS NOT NULL)) OR (shape = 'other'::pan_shape)`),
-	check("pans_cup_count_check", sql`cup_count > 0`),
-	check("pans_depth_cm_check", sql`depth_cm > (0)::numeric`),
+	pgPolicy("pans_insert_own", { as: "permissive", for: "insert", to: ["authenticated"] }),
+	pgPolicy("pans_select", { as: "permissive", for: "select", to: ["anon", "authenticated"] }),
 	check("pans_diameter_cm_check", sql`diameter_cm > (0)::numeric`),
-	check("pans_length_cm_check", sql`length_cm > (0)::numeric`),
-	check("pans_volume_ml_check", sql`volume_ml > (0)::numeric`),
 	check("pans_width_cm_check", sql`width_cm > (0)::numeric`),
+	check("pans_length_cm_check", sql`length_cm > (0)::numeric`),
+	check("pans_depth_cm_check", sql`depth_cm > (0)::numeric`),
+	check("pans_volume_ml_check", sql`volume_ml > (0)::numeric`),
+	check("pans_cup_count_check", sql`cup_count > 0`),
+	check("pans_check", sql`((shape = ANY (ARRAY['round'::pan_shape, 'springform'::pan_shape, 'skillet'::pan_shape])) AND (diameter_cm IS NOT NULL)) OR ((shape = ANY (ARRAY['square'::pan_shape, 'rectangle'::pan_shape, 'loaf'::pan_shape, 'sheet'::pan_shape])) AND (width_cm IS NOT NULL) AND (length_cm IS NOT NULL)) OR ((shape = ANY (ARRAY['bundt'::pan_shape, 'tube'::pan_shape])) AND (volume_ml IS NOT NULL)) OR ((shape = 'muffin'::pan_shape) AND (cup_count IS NOT NULL)) OR (shape = 'other'::pan_shape)`),
 ]);
 
 export const recipes = pgTable("recipes", {
@@ -95,11 +95,11 @@ export const recipes = pgTable("recipes", {
 	pgPolicy("recipes_owner", { as: "permissive", for: "all", to: ["authenticated"], using: sql`(owner_id = ( SELECT auth.uid() AS uid))`, withCheck: sql`((owner_id = ( SELECT auth.uid() AS uid)) AND ((pan_id IS NULL) OR (EXISTS ( SELECT 1
    FROM pans p
   WHERE (p.id = recipes.pan_id)))))`  }),
-	check("recipes_cook_min_check", sql`cook_min >= 0`),
-	check("recipes_oven_temp_c_check", sql`oven_temp_c > (0)::numeric`),
-	check("recipes_prep_min_check", sql`prep_min >= 0`),
-	check("recipes_total_min_check", sql`total_min >= 0`),
 	check("recipes_yield_qty_check", sql`yield_qty > (0)::numeric`),
+	check("recipes_prep_min_check", sql`prep_min >= 0`),
+	check("recipes_cook_min_check", sql`cook_min >= 0`),
+	check("recipes_total_min_check", sql`total_min >= 0`),
+	check("recipes_oven_temp_c_check", sql`oven_temp_c > (0)::numeric`),
 ]);
 
 export const recipeSections = pgTable("recipe_sections", {
@@ -144,10 +144,10 @@ export const recipeIngredients = pgTable("recipe_ingredients", {
   WHERE (r.id = recipe_ingredients.recipe_id))) AND ((ingredient_id IS NULL) OR (EXISTS ( SELECT 1
    FROM ingredients i
   WHERE (i.id = recipe_ingredients.ingredient_id)))))`  }),
-	check("recipe_ingredients_check", sql`(quantity_max IS NULL) OR ((quantity IS NOT NULL) AND (quantity_max >= quantity))`),
-	check("recipe_ingredients_parse_confidence_check", sql`(parse_confidence >= (0)::double precision) AND (parse_confidence <= (1)::double precision)`),
 	check("recipe_ingredients_quantity_check", sql`quantity > (0)::numeric`),
 	check("recipe_ingredients_unit_code_check", sql`unit_code = ANY (ARRAY['tsp'::text, 'tbsp'::text, 'fl_oz'::text, 'cup'::text, 'pint'::text, 'quart'::text, 'ml'::text, 'l'::text, 'g'::text, 'kg'::text, 'oz'::text, 'lb'::text])`),
+	check("recipe_ingredients_parse_confidence_check", sql`(parse_confidence >= (0)::double precision) AND (parse_confidence <= (1)::double precision)`),
+	check("recipe_ingredients_check", sql`(quantity_max IS NULL) OR ((quantity IS NOT NULL) AND (quantity_max >= quantity))`),
 ]);
 
 export const recipeSteps = pgTable("recipe_steps", {
@@ -192,10 +192,10 @@ export const recipeImages = pgTable("recipe_images", {
   WHERE (r.id = recipe_images.recipe_id)))`, withCheck: sql`(EXISTS ( SELECT 1
    FROM recipes r
   WHERE (r.id = recipe_images.recipe_id)))`  }),
-	check("recipe_images_check", sql`((origin = 'upload'::text) AND (storage_path IS NOT NULL)) OR ((origin = 'import'::text) AND (external_url IS NOT NULL))`),
-	check("recipe_images_height_check", sql`height > 0`),
 	check("recipe_images_origin_check", sql`origin = ANY (ARRAY['upload'::text, 'import'::text])`),
 	check("recipe_images_width_check", sql`width > 0`),
+	check("recipe_images_height_check", sql`height > 0`),
+	check("recipe_images_check", sql`((origin = 'upload'::text) AND (storage_path IS NOT NULL)) OR ((origin = 'import'::text) AND (external_url IS NOT NULL))`),
 ]);
 
 export const recipeVersions = pgTable("recipe_versions", {
@@ -208,17 +208,17 @@ export const recipeVersions = pgTable("recipe_versions", {
 }, (table) => [
 	unique("recipe_versions_id_recipe_id_key").on(table.id, table.recipeId),
 	unique("recipe_versions_recipe_id_version_no_key").on(table.recipeId, table.versionNo),
-	pgPolicy("recipe_versions_select", { as: "permissive", for: "select", to: ["authenticated"], using: sql`(EXISTS ( SELECT 1
+	pgPolicy("recipe_versions_insert", { as: "permissive", for: "insert", to: ["authenticated"], withCheck: sql`(EXISTS ( SELECT 1
    FROM recipes r
-  WHERE (r.id = recipe_versions.recipe_id)))` }),
-	pgPolicy("recipe_versions_insert", { as: "permissive", for: "insert", to: ["authenticated"] }),
+  WHERE (r.id = recipe_versions.recipe_id)))`  }),
+	pgPolicy("recipe_versions_select", { as: "permissive", for: "select", to: ["authenticated"] }),
 	check("recipe_versions_version_no_check", sql`version_no >= 1`),
 ]);
 
 export const importJobs = pgTable("import_jobs", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	ownerId: uuid("owner_id").notNull(),
-	url: text().notNull(),
+	url: text(),
 	method: text(),
 	status: text().notNull(),
 	rawPayload: jsonb("raw_payload"),
@@ -231,4 +231,5 @@ export const importJobs = pgTable("import_jobs", {
 	pgPolicy("import_jobs_owner", { as: "permissive", for: "all", to: ["authenticated"], using: sql`(owner_id = ( SELECT auth.uid() AS uid))`, withCheck: sql`(owner_id = ( SELECT auth.uid() AS uid))`  }),
 	check("import_jobs_method_check", sql`method = ANY (ARRAY['jsonld'::text, 'microdata'::text, 'llm'::text, 'paste'::text])`),
 	check("import_jobs_status_check", sql`status = ANY (ARRAY['ok'::text, 'partial'::text, 'failed'::text])`),
+	check("import_jobs_url_unless_paste", sql`(method = 'paste'::text) OR (url IS NOT NULL)`),
 ]);

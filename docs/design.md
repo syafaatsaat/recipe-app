@@ -53,6 +53,7 @@
    - **The security boundary is `lib/auth.ts`** (`getUser()` / `requireUserId()`, which verify the JWT with `getClaims()`; never `getSession()` on the server) **plus RLS**. Every page, Server Action and route that touches user data calls it.
    - `getUser()` calls `await connection()` first: `getClaims()` reads the clock, which Next forbids while prerendering.
    - Email links (sign-up confirmation, password reset) land on `/auth/confirm`, which accepts both the PKCE `?code=` and the `?token_hash=&type=` styles.
+9. **"Pinch", "dash", "to taste" and "as needed" have no amount** (decided 2026-11-26). The parser stores them like a to-taste line: `quantity` null, with the word kept in `note` ("pinch flaky salt"). They never scale or convert. There's no `pinch` unit, so `UNIT_CODES` and the `unit_code` CHECK are unchanged.
 
 ## 4. Schema (Postgres)
 
@@ -63,8 +64,9 @@
 | `…000_init_schema.sql` | enums (`recipe_source`, `pan_shape`, `scaling_rule`), tables `profiles`, `ingredients`, `pans`, `recipes`, `recipe_sections`, `recipe_ingredients`, `recipe_steps`, `recipe_images`, `recipe_versions`, `import_jobs`, plus indexes |
 | `…001_rls_policies.sql` | RLS on every table, plus policies |
 | `…002_triggers.sql` | profile row on signup, `recipes.updated_at` |
+| `…003_import_jobs_paste.sql` | `import_jobs.url` nullable for pasted text, with a CHECK that link imports keep one (M5) |
 
-Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks). Seed: [`supabase/seed.sql`](../supabase/seed.sql).
+Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks) and [`import_jobs.test.sql`](../supabase/tests/import_jobs.test.sql) (5). Seed: [`supabase/seed.sql`](../supabase/seed.sql).
 
 **What changed from the v1 draft SQL, and why.** The draft applied cleanly, but probing it found the following. The verbatim draft is in git history (commit `50eeb88`).
 - **No RLS at all.** Supabase exposes `public` tables through the Data API with the public anon key, so with RLS off, anyone could read and write every table. Every table now has RLS. Child tables have no `owner_id`, so their policies check ownership through `recipes`. Global `ingredients`/`pans` are readable by `anon` and `authenticated` and writable by no one through the API. `recipe_versions` is select/insert only, so history can't be edited. Insert/update policies also check that a linked `pan_id`/`ingredient_id` is one the user can see, because FK checks ignore RLS.
@@ -190,7 +192,8 @@ These settle what the pipeline above left open. `lib/culinary/` tests encode eve
 2. ✅ **Done 2026-11-25, see §8.** **Design pass 1: UX wireframes (½–1 day, low-fi).** Cover the 4 screens that drive structure: recipe view with scale/unit controls and the "orig." display, structured ingredient editor, import review/fix, and recipe list. Do it here because these screens decide component boundaries and the editor's data flow. Pick a shadcn theme, type scale and colour tokens. Skip pixel polish.
 3. ✅ **Done 2026-11-25 (M3).** Schema, auth, manual recipe CRUD with structured ingredient editor. Add the daily Supabase keep-alive cron (Vercel Cron hitting a route that runs `select 1`) as soon as the project is deployed. (Built: `/api/keep-alive` and `vercel.json`, daily at 09:00 UTC; it needs `CRON_SECRET` set in Vercel.)
 4. ✅ **Done 2026-11-26 (M4).** Render with scaling, unit toggle and URL state. Built: `ScaleBar`, `UnitToggle` with Reset, `WarningList`, "orig." labels, and the `ScaleSheet` (Factor / Yield / Pan with `PanDiagram`s), plus "Copy link to this view". The view renders on the client from `?mode=…&units=…` and updates the URL with `history.replaceState`, so taps are instant and Back leaves the recipe; a shared link is server-rendered already scaled. Wording for warnings and pan options lives in `lib/recipes/scale-view.ts`.
-5. Importer: JSON-LD, then the ingredient-line parser, then the review/fix screen (low-confidence lines highlighted), then the LLM fallback.
+5. Importer (M5): JSON-LD and microdata, then the ingredient-line parser, then the review/fix screen (low-confidence lines highlighted), with pasted text as the fallback when a page has no recipe data or blocks the fetch.
+   5b. **LLM fallback (M5b, split off 2026-11-26** so M5 needs no API key): Claude Haiku for pages without structured data and for low-confidence lines.
 6. Photo upload (client resize, Storage, cover/per-step).
 7. **Design pass 2: visual polish (2–3 days).** Do this once real recipes and photos exist, because you can't judge a design against lorem ipsum. Covers the landing/demo page, empty states, mobile layout (people cook from phones), loading skeletons, dark mode. Then seed a public demo account and launch the portfolio here, since this is the first shippable version.
 8. Version history, then cook mode, then search/tags, then shopping list, then cook log. Each feature gets a quick wireframe before you build it, not a separate design phase.
@@ -229,9 +232,10 @@ Recheck these before relying on them. Limits change.
 | @supabase/ssr / @supabase/supabase-js | 0.12.7 / 2.119.2 | Added in M3. |
 | shadcn (CLI + `shadcn/tailwind.css`) | 4.23.0 | radix base, nova preset. Pulled in radix-ui 1.8.1, cmdk 1.1.1, sonner 2.0.8, lucide-react 1.79.0, class-variance-authority 0.7.1, cn 0.5.2 (shadcn's own class merger), tw-animate-css 1.4.0. next-themes was removed (no dark mode yet). Controls were resized to the §8 rules. |
 | @playwright/test | 1.65.1 | Chromium only, phone viewport. |
+| cheerio | 1.2.0 | Added in M5 (the latest release). Reads JSON-LD and microdata from imported pages. |
 | @types/node | 24.19.2 | Unverified: match it to the Node version Vercel runs when deploying (local dev is Node 26). |
 
-Not installed yet (added at their milestone): cheerio 1.2.0, @anthropic-ai/sdk 1.14.0. Re-check versions when installing.
+Not installed yet (added at their milestone): @anthropic-ai/sdk 1.14.0 (M5b). Re-check the version when installing.
 
 ## 8. Design (pass 1, decided 2026-11-25)
 
