@@ -6,7 +6,7 @@ import { JSONLD_GRAPH } from "@/lib/import/fixtures";
 import { ingredientCandidates } from "@/lib/import/parse-line";
 import { createDb } from "./client";
 import { addMyIngredient, matchMany } from "./ingredients";
-import { attachRecipe, createImportJob, findBySourceUrl, getImportJob, importsInLastHour, llmCallsToday, recordLlmCall } from "./imports";
+import { attachRecipe, createImportJob, findBySourceUrl, getImportJob, importsInLastHour, llmCallsToday, llmCallsTodayAll, recordLlmCall } from "./imports";
 import { createRecipe, getRecipe } from "./recipes";
 
 const URL = process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
@@ -28,10 +28,15 @@ afterAll(async () => {
 describe("llm calls", () => {
   it("counts a user's calls in the last day, failed ones included, and nobody else's", async () => {
     const before = await llmCallsToday(db, ALICE);
+    const beforeAll = await llmCallsTodayAll(db);
     await recordLlmCall(db, ALICE, { kind: "recipe", ok: true, inputTokens: 1200, outputTokens: 300 });
     await recordLlmCall(db, ALICE, { kind: "lines", ok: false, inputTokens: 0, outputTokens: 0 });
+    await recordLlmCall(db, BOB, { kind: "recipe", ok: true, inputTokens: 900, outputTokens: 200 });
     expect(await llmCallsToday(db, ALICE)).toBe(before + 2);
-    expect(await llmCallsToday(db, BOB)).toBe(0);
+    expect(await llmCallsToday(db, BOB)).toBe(1);
+    // the app-wide count sees everyone's calls
+    expect(await llmCallsTodayAll(db)).toBe(beforeAll + 3);
+    await db.execute(sql`delete from llm_calls where owner_id = ${BOB}`);
     await db.execute(sql`update llm_calls set created_at = now() - interval '25 hours' where owner_id = ${ALICE}`);
     expect(await llmCallsToday(db, ALICE)).toBe(0);
   });

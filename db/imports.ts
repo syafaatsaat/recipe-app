@@ -84,6 +84,15 @@ export async function findBySourceUrl(
 /** AI calls a user may make per day (doc §3.11). */
 export const DAILY_LLM_CALLS = 20;
 
+/** AI calls everyone together may make per day: a ceiling on the bill however many accounts exist (doc §3.11). */
+export const DAILY_LLM_CALLS_ALL = 500;
+
+/** Everyone's AI calls in the last 24 hours. Counts across users, so it reads as the server's role, not through withUser. */
+export async function llmCallsTodayAll(db: Db): Promise<number> {
+  const [row] = await db.select({ n: count() }).from(llmCalls).where(gt(llmCalls.createdAt, sql`now() - interval '1 day'`));
+  return row.n;
+}
+
 /** The user's AI calls in the last 24 hours, failed ones included (they cost too). */
 export async function llmCallsToday(db: Db, userId: string): Promise<number> {
   const [row] = await withUser(db, userId, (tx) =>

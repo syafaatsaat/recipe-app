@@ -3,7 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { attachRecipe, createImportJob, DAILY_LLM_CALLS, getImportJob, importsInLastHour, llmCallsToday, recordLlmCall } from "@/db/imports";
+import {
+  attachRecipe,
+  createImportJob,
+  DAILY_LLM_CALLS,
+  DAILY_LLM_CALLS_ALL,
+  getImportJob,
+  importsInLastHour,
+  llmCallsToday,
+  llmCallsTodayAll,
+  recordLlmCall,
+} from "@/db/imports";
 import { createRecipe } from "@/db/recipes";
 import { endMissingAccount, isMissingAccount, requireUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -37,14 +47,15 @@ async function failed(where: string, e: unknown, message: string): Promise<{ err
 }
 
 /**
- * One AI call (doc §3.11), when a key is set and the user is under the daily cap; every
+ * One AI call (doc §3.11), when a key is set and both daily caps (the user's, everyone's) have room; every
  * call that ran is recorded, failed or not. Null means "carry on without AI".
  */
 async function withAi<T>(userId: string, kind: "recipe" | "lines", run: (c: LlmClient) => Promise<LlmResult<T>>): Promise<T | null> {
   const client = llmClient();
   if (!client) return null;
   const db = getDb();
-  if ((await llmCallsToday(db, userId)) >= DAILY_LLM_CALLS) return null;
+  const [mine, all] = await Promise.all([llmCallsToday(db, userId), llmCallsTodayAll(db)]);
+  if (mine >= DAILY_LLM_CALLS || all >= DAILY_LLM_CALLS_ALL) return null;
   const r = await run(client);
   await recordLlmCall(db, userId, { kind, ok: r.value !== null, inputTokens: r.inputTokens, outputTokens: r.outputTokens });
   return r.value;

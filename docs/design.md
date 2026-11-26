@@ -61,7 +61,7 @@
    - **When:** a link whose page has no JSON-LD or microdata (saved as `method = 'llm'`, always reviewed), and the flagged lines of any import (at most 40, one call, during the import action, never on page view).
    - **Suggestions, not rewrites:** an AI reading of a flagged line is stored in `raw_payload.lineHints` and offered on the review as "AI suggests…" with **Use this**; the parser's reading stays the default and the line stays flagged until tapped.
    - **Checked, not trusted:** output is Zod-validated, units must be known codes, quantities finite and ≤ `MAX_QUANTITY`; every extracted ingredient line must appear in the page text (invented or injected lines are dropped), steps need most of their words in the page. Page text is sent as untrusted data; the model has no tools.
-   - **Cost:** thinking off, effort `low`, 20 s timeout, no retries in-request; at most 20 AI calls per user per day, counted from `llm_calls` (one row per call with its token counts; owners can read theirs but not write them, because `import_jobs` is owner-editable and a cap counted there could be reset). No prompt caching (the prompt is below the minimum cacheable length).
+   - **Cost:** thinking off, effort `low`, 20 s timeout, no retries in-request; at most 20 AI calls per user per day and **500 a day across all users** (a ceiling on the bill however many accounts sign up; past either, imports work as in M5), counted from `llm_calls` (one row per call with its token counts; owners can read theirs but not write them, because `import_jobs` is owner-editable and a cap counted there could be reset). No prompt caching (the prompt is below the minimum cacheable length).
 
 ## 4. Schema (Postgres)
 
