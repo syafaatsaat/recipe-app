@@ -22,6 +22,7 @@
 - Drizzle connects as `postgres`, which **bypasses RLS**. User-scoped queries must go through `db/withUser.ts`.
 - **Identity comes only from `lib/auth.ts`** (`getUser()`/`requireUserId()`). Never trust a user id from the client, and never use `getSession()` on the server. `proxy.ts` redirects are a convenience, not a guard.
 - With Cache Components on, anything that reads cookies, params or searchParams goes inside `<Suspense>`.
+- Next 16 keeps recently visited pages mounted but hidden. Never hard-code element ids (`id="email"`): use `useId()`. In e2e tests, field lookups use `.filter({ visible: true })`.
 - Scale and units live only in the URL (doc §3.5). `components/recipes/view/recipe-view.tsx` reads them with `useSearchParams` and writes them with `history.replaceState`. Don't add a server round-trip or a history entry per tap.
 - Pin exact dependency versions (no `^`/`~`; `saveExact` is set). Don't bypass pnpm's `minimumReleaseAge` quarantine. Pick an older release instead.
 - `AGENTS.md` comes from Next.js: Next 16 may differ from training data, so check `node_modules/next/dist/docs/` before using Next APIs.
