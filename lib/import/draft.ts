@@ -51,6 +51,23 @@ export function ovenFromSteps(steps: readonly string[]): { c: number; unit: "F" 
   return null;
 }
 
+type Line = RecipeDraft["sections"][number]["ingredients"][number];
+
+/** A parsed line as a draft line, within the schema's lengths (a long pasted line still saves). */
+export function importedLine(p: ParsedLine, ingredientId: string | null = null): Line {
+  const cut = (s: string | null, n: number) => (s ? s.slice(0, n).trim() || null : null);
+  return {
+    ...p.fields,
+    name: p.fields.name.slice(0, 200).trim() || p.raw.trim().slice(0, 200) || "ingredient",
+    preparation: cut(p.fields.preparation, 200),
+    note: cut(p.fields.note, 500),
+    ingredientId,
+    scalingRule: null,
+    rawText: cut(p.raw.trim(), 500),
+    parseConfidence: p.confidence,
+  };
+}
+
 const MAX_SECTIONS = 20;
 const MAX_LINES = 100;
 const MAX_STEPS = 100;
@@ -84,13 +101,7 @@ export function toImportDraft(x: ExtractedRecipe): ImportDraft {
     ovenUnit: oven?.unit ?? null,
     sections: kept.map((g) => ({
       title: g.title ? g.title.slice(0, 100) : null,
-      ingredients: g.lines.map((p) => ({
-        ...p.fields,
-        ingredientId: null,
-        scalingRule: null,
-        rawText: p.raw.trim().slice(0, 500) || null,
-        parseConfidence: p.confidence,
-      })),
+      ingredients: g.lines.map((p) => importedLine(p)),
     })),
     steps,
   };
@@ -101,34 +112,66 @@ export function toImportDraft(x: ExtractedRecipe): ImportDraft {
   };
 }
 
-/** What the reviewer did: "si-li" keys for ingredient lines, indexes for steps. */
+/**
+ * What the reviewer did. Ingredient lines are keyed "si-li", steps by index; a moved
+ * item keeps its original key, so removing or accepting it works wherever it now sits.
+ */
 export interface ReviewChoices {
   accepted: ReadonlySet<string>;
   removedLines: ReadonlySet<string>;
   removedSteps: ReadonlySet<number>;
+  /** ingredient lines that are really steps */
+  movedLines?: ReadonlySet<string>;
+  /** steps that are really ingredients */
+  movedSteps?: ReadonlySet<number>;
+  /** catalog matches found for moved steps, by step index */
+  stepMatches?: ReadonlyMap<number, string | null>;
 }
 
 export const lineKey = (si: number, li: number) => `${si}-${li}`;
+/** the accept key of a step moved into the ingredients */
+export const stepKey = (i: number) => `s${i}`;
+
+/** A step read as an ingredient line. */
+export const stepAsLine = (body: string) => parseLine(body);
 
 /**
- * The draft to save after review: removed lines and steps left out, accepted lines
- * marked checked (confidence 1). A section left empty goes, unless it's the last one;
- * one section left on its own drops the title it only needed to tell sections apart.
+ * The draft to save after review. Removed lines and steps are left out; accepted lines
+ * are marked checked (confidence 1). Lines moved to the method become steps (their
+ * original text) after the others; steps moved to the ingredients are parsed and join
+ * the last section. A section left empty goes, unless it's the last one; one section
+ * left on its own drops the title it only needed to tell sections apart.
  */
 export function reviewedDraft(draft: RecipeDraft, c: ReviewChoices): RecipeDraft {
-  const sections = draft.sections
-    .map((s, si) => ({
-      ...s,
-      ingredients: s.ingredients
-        .map((l, li) => ({ l, key: lineKey(si, li) }))
-        .filter(({ key }) => !c.removedLines.has(key))
-        .map(({ l, key }) => (c.accepted.has(key) ? { ...l, parseConfidence: 1 } : l)),
-    }))
-    .filter((s) => s.ingredients.length > 0);
-  if (sections.length === 1 && draft.sections.length > 1 && sections[0].title === "Ingredients") sections[0].title = null;
+  const movedLines = c.movedLines ?? new Set<string>();
+  const movedSteps = c.movedSteps ?? new Set<number>();
+  const check = (l: Line, key: string): Line => (c.accepted.has(key) ? { ...l, parseConfidence: 1 } : l);
+
+  const sections = draft.sections.map((s, si) => ({
+    ...s,
+    ingredients: s.ingredients
+      .map((l, li) => ({ l, key: lineKey(si, li) }))
+      .filter(({ key }) => !c.removedLines.has(key) && !movedLines.has(key))
+      .map(({ l, key }) => check(l, key)),
+  }));
+  const fromSteps = [...movedSteps]
+    .filter((i) => i < draft.steps.length && !c.removedSteps.has(i))
+    .sort((a, b) => a - b)
+    .map((i) => check(importedLine(stepAsLine(draft.steps[i].body), c.stepMatches?.get(i) ?? null), stepKey(i)));
+  sections[sections.length - 1].ingredients.push(...fromSteps);
+
+  const kept = sections.filter((s) => s.ingredients.length > 0);
+  if (kept.length === 1 && draft.sections.length > 1 && kept[0].title === "Ingredients") kept[0].title = null;
+
+  const fromLines = draft.sections.flatMap((s, si) =>
+    s.ingredients
+      .map((l, li) => ({ l, key: lineKey(si, li) }))
+      .filter(({ key }) => movedLines.has(key) && !c.removedLines.has(key))
+      .map(({ l }) => ({ body: (l.rawText ?? l.name).slice(0, 5000) })),
+  );
   return {
     ...draft,
-    sections: sections.length ? sections : [{ title: null, ingredients: [] }],
-    steps: draft.steps.filter((_, i) => !c.removedSteps.has(i)),
+    sections: kept.length ? kept : [{ title: null, ingredients: [] }],
+    steps: [...draft.steps.filter((_, i) => !c.removedSteps.has(i) && !movedSteps.has(i)), ...fromLines].slice(0, 100),
   };
 }

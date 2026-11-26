@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { recipeDraftSchema } from "@/lib/recipes/schema";
-import { lineKey, ovenTempFromSteps, parseYield, reviewedDraft, toImportDraft } from "./draft";
+import { importedLine, lineKey, ovenTempFromSteps, parseYield, reviewedDraft, stepKey, toImportDraft } from "./draft";
 import { extractRecipe, isoMinutes, plainText, withSections } from "./extract";
 import { JSONLD_GRAPH, JSONLD_SIMPLE, MICRODATA, NO_RECIPE, PASTE_BLOG_CARD, PASTE_FULL_CARD, PASTE_NO_HEADINGS, PASTE_WITH_HEADINGS } from "./fixtures";
 import { durationMinutes, parsePaste } from "./paste";
+import { parseLine } from "./parse-line";
 
 describe("extractRecipe: JSON-LD", () => {
   const r = extractRecipe(JSONLD_GRAPH, "https://www.example.com/cake?utm=x")!;
@@ -262,6 +263,58 @@ describe("toImportDraft", () => {
     const empty = keep([lineKey(0, 0), lineKey(0, 1), lineKey(0, 2), lineKey(1, 0), lineKey(1, 1)]);
     expect(empty.sections).toEqual([{ title: null, ingredients: [] }]);
     expect(recipeDraftSchema.safeParse(empty).success).toBe(true);
+  });
+
+  it("moves lines between the ingredients and the method", () => {
+    const { draft } = toImportDraft(parsePaste("Toast\n2 slices bread\n10 minutes later, flip it.\n1 tbsp butter\nToast the bread.\nSpread the butter."));
+    expect(draft.sections[0].ingredients.map((l) => l.rawText)).toEqual(["2 slices bread", "10 minutes later, flip it.", "1 tbsp butter"]);
+    expect(draft.steps.map((t) => t.body)).toEqual(["Toast the bread.", "Spread the butter."]);
+
+    const out = reviewedDraft(draft, {
+      accepted: new Set([stepKey(1)]),
+      removedLines: new Set(),
+      removedSteps: new Set(),
+      movedLines: new Set([lineKey(0, 1)]),
+      movedSteps: new Set([1]),
+      stepMatches: new Map([[1, "00000000-0000-4000-8000-000000000001"]]),
+    });
+    expect(out.steps.map((t) => t.body)).toEqual(["Toast the bread.", "10 minutes later, flip it."]);
+    const moved = out.sections[0].ingredients[2];
+    expect(moved).toMatchObject({ rawText: "Spread the butter.", parseConfidence: 1, ingredientId: "00000000-0000-4000-8000-000000000001" });
+    expect(out.sections[0].ingredients.map((l) => l.rawText)).toEqual(["2 slices bread", "1 tbsp butter", "Spread the butter."]);
+    expect(recipeDraftSchema.safeParse(out).success).toBe(true);
+  });
+
+  it("removes a moved item by its original key, and fills an emptied list from the other", () => {
+    const { draft } = toImportDraft(parsePaste(PASTE_WITH_HEADINGS));
+    const all = [lineKey(0, 0), lineKey(0, 1), lineKey(0, 2), lineKey(1, 0), lineKey(1, 1)];
+    const out = reviewedDraft(draft, {
+      accepted: new Set(),
+      removedLines: new Set([lineKey(0, 0)]),
+      removedSteps: new Set([1]),
+      movedLines: new Set(all),
+      movedSteps: new Set([0, 1, 99]),
+    });
+    // every line moved out; step 0 moved in lands in the last section, step 1 was removed
+    expect(out.sections).toEqual([{ title: "For the drizzle", ingredients: [expect.objectContaining({ rawText: "Heat the oven to 180°C." })] }]);
+    expect(out.steps.map((t) => t.body)).toEqual([
+      "Bake for 45 minutes.",
+      "Mix the juice and sugar, and pour over the warm cake.",
+      "225g caster sugar",
+      "4 eggs",
+      "juice of 1½ lemons",
+      "85g caster sugar",
+    ]);
+    expect(recipeDraftSchema.safeParse(out).success).toBe(true);
+  });
+
+  it("keeps a long pasted line within the schema", () => {
+    const long = "1 cup " + "very ".repeat(100) + "fine sugar, sifted " + "twice ".repeat(60) + "(" + "note ".repeat(150) + ")";
+    const line = importedLine(parseLine(long));
+    expect(line.name.length).toBeLessThanOrEqual(200);
+    expect(line.rawText!.length).toBeLessThanOrEqual(500);
+    expect((line.preparation ?? "").length).toBeLessThanOrEqual(200);
+    expect((line.note ?? "").length).toBeLessThanOrEqual(500);
   });
 
   it("names untitled sections after the first", () => {

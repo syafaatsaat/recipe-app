@@ -188,6 +188,45 @@ test("lines read wrongly can be removed from the review, with undo", async ({ pa
   await expect(page.getByRole("listitem").filter({ hasText: "slices bread" }).filter({ visible: true })).toHaveCount(1);
 });
 
+test("a line read into the wrong list can be moved to the other", async ({ page }) => {
+  await signUp(page, uniqueEmail("import-move"));
+  await page.goto("/recipes/import?paste=1");
+  await page.getByLabel("Recipe text").filter({ visible: true }).fill(
+    ["Pan toast", "2 slices bread", "1 tbsp butter", "Butter the bread.", "Toast it in a hot pan.", "10 minutes later, flip it.", "Flaky salt"].join("\n"),
+  );
+  await page.getByRole("button", { name: "Read pasted text" }).click();
+  await expect(page.getByRole("heading", { name: "Pan toast" })).toBeVisible(AFTER_SUBMIT);
+  await expect(page.getByRole("heading", { name: "Method · 3 steps" })).toBeVisible();
+
+  // "10 minutes later…" starts with a number, so it was read as an ingredient
+  await page.getByRole("button", { name: "Move to method: 10 minutes later, flip it." }).click();
+  await expect(page.getByRole("heading", { name: "Method · 4 steps" })).toBeVisible();
+  await expect(page.getByText("Moved from the ingredients")).toBeVisible(); // the method opens to show it
+
+  // "Flaky salt" has no amount, so it was read as a step; moved, it's matched like any line
+  await page.getByRole("button", { name: "Move to ingredients: Flaky salt" }).click();
+  await expect(page.getByText("Moved from the method")).toBeVisible();
+  await expect(page.getByText("Flaky salt ✓")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Method · 3 steps" })).toBeVisible();
+
+  // and back again, then across once more
+  await page.getByRole("button", { name: "Move to method: Flaky salt" }).click();
+  await expect(page.getByText("Moved from the method")).toHaveCount(0);
+  await page.getByRole("button", { name: "Move to ingredients: Flaky salt" }).click();
+
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, AFTER_SUBMIT);
+  await expect(page.getByRole("heading", { name: "Pan toast" })).toBeVisible();
+  const visibleItem = (text: string) => page.getByRole("listitem").filter({ hasText: text }).filter({ visible: true });
+  await expect(visibleItem("Flaky salt")).toHaveCount(1);
+  await expect(visibleItem("10 minutes later, flip it.")).toHaveCount(1);
+  await expect(page.getByRole("list").filter({ visible: true }).last().getByRole("listitem")).toHaveText([
+    /Butter the bread\./,
+    /Toast it in a hot pan\./,
+    /10 minutes later, flip it\./,
+  ]);
+});
+
 test("private addresses are refused with a friendly error", async ({ page }) => {
   await signUp(page, uniqueEmail("import-ssrf"));
   await page.goto("/recipes/import");
