@@ -58,3 +58,16 @@ test("forgot password: the emailed link lets you set a new one", async ({ page }
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/recipes$/);
 });
+
+test("an action after the session ends goes to sign in, not a broken response", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await signUp(page, uniqueEmail("expired"));
+  await page.goto("/recipes/new");
+  await page.context().clearCookies(); // e.g. signed out in another tab, or `pnpm db:reset`
+  const ingredient = page.getByLabel("Ingredient", { exact: true }).first();
+  await ingredient.fill("flour");
+  await ingredient.blur(); // runs the exactIngredient Server Action
+  await expect(page).toHaveURL(/\/login$/);
+  expect(errors).toEqual([]);
+});
