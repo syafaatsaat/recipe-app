@@ -4,7 +4,7 @@
 // client, so a chip tap is instant. URL changes use history.replaceState, which Next
 // syncs with useSearchParams: no server round-trip, and Back still leaves the recipe.
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { minutesText } from "@/components/recipes/format";
 import { RecipeMenu } from "@/components/recipes/recipe-menu";
 import { parseScaleParams, render, sourceSystem, toScaleParams, type RenderInput, type ScaleState, type UnitSystem } from "@/lib/culinary";
@@ -49,6 +49,7 @@ export function RecipeView({
   const scale = parsed.scale;
   const units = parsed.units ?? source;
   const [sheetOpen, setSheetOpen] = useState(false);
+  const headingId = useId();
 
   const rendered = render(input, scale, units, { pans });
   // an impossible scale (e.g. a stale pan link) shows the recipe as written, with a note
@@ -118,8 +119,8 @@ export function RecipeView({
       </ScaleBar>
       <WarningList notes={notes} />
 
-      <section className="px-6 pt-7" aria-labelledby="ingredients">
-        <h2 id="ingredients" className="mb-1.5 text-xl font-medium">
+      <section className="px-6 pt-7" aria-labelledby={headingId}>
+        <h2 id={headingId} className="mb-1.5 text-xl font-medium">
           Ingredients
         </h2>
         {draft.sections.map((s, si) => (

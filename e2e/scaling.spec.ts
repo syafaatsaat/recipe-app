@@ -24,7 +24,7 @@ test("chips scale amounts and write the URL; units toggle; reset returns the ori
 
   await page.getByRole("button", { name: "2×" }).click();
   await expect(page).toHaveURL(/\?mode=factor&f=2$/);
-  await expect(page.getByLabel("Scale factor")).toHaveText("×2");
+  await expect(page.getByLabel("Scale factor").filter({ visible: true })).toHaveText("×2");
   await expect(amountOf(page, "granulated sugar")).toHaveText("2½ cups");
   await expect(page.getByText("orig. 1¼ cups")).toBeVisible();
   await expect(page.getByText("Makes 24 squares")).toBeVisible();
@@ -61,20 +61,20 @@ test("the sheet scales by factor, yield and pan", async ({ page }) => {
   // factor: out of range, then 1½
   await page.getByRole("button", { name: "More" }).click();
   await page.getByRole("tab", { name: "Factor" }).click();
-  await page.getByLabel("Multiply by").fill("25");
+  await page.getByLabel("Multiply by").filter({ visible: true }).fill("25");
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(page.getByText("Use a number between 0.1 and 20.")).toBeVisible();
-  await page.getByLabel("Multiply by").fill("1½");
+  await page.getByLabel("Multiply by").filter({ visible: true }).fill("1½");
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(page).toHaveURL(/\?mode=factor&f=1.5$/);
-  await expect(page.getByLabel("Scale factor")).toHaveText("×1.5");
+  await expect(page.getByLabel("Scale factor").filter({ visible: true })).toHaveText("×1.5");
   await expect(page.getByRole("button", { name: "More" })).toHaveAttribute("aria-pressed", "true");
 
   // yield: 18 squares is 1.5× too
   await page.getByRole("button", { name: "More" }).click();
   await page.getByRole("tab", { name: "Yield" }).click();
   await expect(page.getByText("The recipe makes 12 squares.")).toBeVisible();
-  await page.getByLabel("How many squares?").fill("6");
+  await page.getByLabel("How many squares?").filter({ visible: true }).fill("6");
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(page).toHaveURL(/\?mode=yield&qty=6$/);
   await expect(page.getByText("Makes 6 squares")).toBeVisible();
@@ -87,7 +87,7 @@ test("the sheet scales by factor, yield and pan", async ({ page }) => {
   await page.getByRole("radio", { name: /9×13 in rectangle, 117 in² · ×1.84/ }).click();
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(page).toHaveURL(/\?mode=pan&pan=[0-9a-f-]{36}$/);
-  await expect(page.getByLabel("Scale factor")).toHaveText("×1.84");
+  await expect(page.getByLabel("Scale factor").filter({ visible: true })).toHaveText("×1.84");
   await expect(page.getByRole("button", { name: "9×13" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Makes about 22 squares")).toBeVisible();
   await expect(page.getByRole("note").filter({ hasText: "Round to rectangle changes the bake time." })).toBeVisible();
@@ -116,12 +116,12 @@ test("copy link opens the same scaled view, after signing in elsewhere", async (
   const p2 = await other.newPage();
   await p2.goto(link);
   await expect(p2).toHaveURL(/\/login\?next=/);
-  await p2.getByLabel("Email").fill(email);
-  await p2.getByLabel("Password").fill(PASSWORD);
+  await p2.getByLabel("Email").filter({ visible: true }).fill(email);
+  await p2.getByLabel("Password").filter({ visible: true }).fill(PASSWORD);
   await p2.getByRole("button", { name: "Sign in" }).click();
   await expect(p2).toHaveURL(link);
   await expect(amountOf(p2, "granulated sugar")).toHaveText("745 g");
-  await expect(p2.getByLabel("Scale factor")).toHaveText("×3");
+  await expect(p2.getByLabel("Scale factor").filter({ visible: true })).toHaveText("×3");
 
   // no client JS needed for the first paint: the server rendered the scaled view
   const html = await (await p2.request.get(link)).text();

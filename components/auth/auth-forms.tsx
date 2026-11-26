@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 import {
   requestPasswordReset,
   resetPassword,
@@ -13,14 +13,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function Field(props: { id: string; label: string; hint?: string } & React.ComponentProps<typeof Input>) {
-  const { id, label, hint, ...input } = props;
+// Ids come from useId: Next keeps recently visited pages mounted (hidden), so a
+// fixed id="email" on /signup would capture the /login label's htmlFor.
+function Field(props: { name: string; label: string; hint?: string } & React.ComponentProps<typeof Input>) {
+  const { name, label, hint, ...input } = props;
+  const id = `${useId()}${name}`;
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id} className="text-[13px] font-normal text-muted-foreground">
         {label}
       </Label>
-      <Input id={id} name={id} aria-describedby={hint ? `${id}-hint` : undefined} {...input} />
+      <Input id={id} name={name} aria-describedby={hint ? `${id}-hint` : undefined} {...input} />
       {hint && (
         <p id={`${id}-hint`} className="text-xs text-muted-foreground">
           {hint}
@@ -53,8 +56,8 @@ export function SignInForm({ next, linkError }: { next?: string; linkError?: boo
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="next" value={next ?? ""} />
-      <Field id="email" label="Email" type="email" autoComplete="email" required defaultValue={state.fields?.email} />
-      <Field id="password" label="Password" type="password" autoComplete="current-password" required />
+      <Field name="email" label="Email" type="email" autoComplete="email" required defaultValue={state.fields?.email} />
+      <Field name="password" label="Password" type="password" autoComplete="current-password" required />
       <Status state={state} />
       <Button type="submit" size="lg" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
@@ -76,9 +79,9 @@ export function SignUpForm() {
   if (state.message) return <Status state={state} />;
   return (
     <form action={action} className="flex flex-col gap-4">
-      <Field id="email" label="Email" type="email" autoComplete="email" required defaultValue={state.fields?.email} />
+      <Field name="email" label="Email" type="email" autoComplete="email" required defaultValue={state.fields?.email} />
       <Field
-        id="password"
+        name="password"
         label="Password"
         type="password"
         autoComplete="new-password"
@@ -104,7 +107,7 @@ export function ForgotPasswordForm() {
   const [state, action, pending] = useActionState(requestPasswordReset, {});
   return (
     <form action={action} className="flex flex-col gap-4">
-      <Field id="email" label="Email" type="email" autoComplete="email" required />
+      <Field name="email" label="Email" type="email" autoComplete="email" required />
       <Status state={state} />
       <Button type="submit" size="lg" disabled={pending}>
         {pending ? "Sending…" : "Send reset link"}
@@ -121,7 +124,7 @@ export function ResetPasswordForm() {
   return (
     <form action={action} className="flex flex-col gap-4">
       <Field
-        id="password"
+        name="password"
         label="New password"
         type="password"
         autoComplete="new-password"

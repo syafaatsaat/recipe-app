@@ -9,6 +9,9 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"]],
   timeout: 60_000,
+  // `next dev` compiles each route on its first visit, which can take longer than
+  // the 5 s default on a cold .next cache
+  expect: { timeout: 15_000 },
   use: {
     baseURL: "http://localhost:3000",
     trace: "retain-on-failure",

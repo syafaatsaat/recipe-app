@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Plus } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 import { addIngredient, findIngredients } from "@/app/(app)/recipes/actions";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -129,6 +129,7 @@ function AddForm({
 }) {
   const [name, setName] = useState(defaultName);
   const [grams, setGrams] = useState("");
+  const uid = useId();
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -146,28 +147,28 @@ function AddForm({
     <div className="flex flex-col gap-3.5 p-4">
       <p className="font-heading text-lg font-medium">Add to my ingredients</p>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="new-ing-name" className="text-[13px] font-normal text-muted-foreground">
+        <Label htmlFor={`${uid}new-ing-name`} className="text-[13px] font-normal text-muted-foreground">
           Name
         </Label>
-        <Input id="new-ing-name" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input id={`${uid}new-ing-name`} value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="new-ing-grams" className="text-[13px] font-normal text-muted-foreground">
+        <Label htmlFor={`${uid}new-ing-grams`} className="text-[13px] font-normal text-muted-foreground">
           Weight of 1 cup, in grams (optional)
         </Label>
         <div className="flex items-center gap-2">
           <Input
-            id="new-ing-grams"
+            id={`${uid}new-ing-grams`}
             inputMode="decimal"
             placeholder="e.g. 85"
             value={grams}
             onChange={(e) => setGrams(e.target.value)}
             className="font-mono"
-            aria-describedby="new-ing-grams-hint"
+            aria-describedby={`${uid}new-ing-grams-hint`}
           />
           <span className="font-mono text-sm whitespace-nowrap text-muted-foreground">g / cup</span>
         </div>
-        <p id="new-ing-grams-hint" className="text-xs leading-snug text-muted-foreground">
+        <p id={`${uid}new-ing-grams-hint`} className="text-xs leading-snug text-muted-foreground">
           Skip it if you don’t know. The line still scales; it just won’t show grams.
         </p>
       </div>

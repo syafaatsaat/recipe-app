@@ -38,8 +38,8 @@ async function Recipe({ params }: { params: PageProps<"/recipes/[id]">["params"]
     >
       <div>
         {draft.steps.length > 0 && (
-          <section className="px-6 pt-8" aria-labelledby="method">
-            <h2 id="method" className="mb-3.5 text-xl font-medium">
+          <section className="px-6 pt-8" aria-labelledby={`method-${recipe.id}`}>
+            <h2 id={`method-${recipe.id}`} className="mb-3.5 text-xl font-medium">
               Method
             </h2>
             <ol className="flex flex-col gap-4 text-[15px] leading-relaxed">
