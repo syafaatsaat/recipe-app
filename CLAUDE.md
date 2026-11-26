@@ -13,7 +13,7 @@
 - [x] **M4: scaling + units on the recipe page** (doc §6 step 4). Chips, scale sheet (factor/yield/pan), US/Metric, Reset, warnings, copy link; state in the URL. Merged.
 - [x] **M5: import** from a link (JSON-LD, microdata) or pasted text, the ingredient-line parser, the review screen, SSRF guard (doc §6 step 5). Merged.
 - [x] **M5b: the Claude Haiku fallback** (doc §6 step 5b, §3.11). Off unless `ANTHROPIC_API_KEY` is set; tests never call the real API. Merged.
-- [ ] **M6 in progress** (branch `m6-photos`): photos (doc §6 step 6, §3.12): browser resize, private bucket, cover and per-step, imported photos linked.
+- [ ] **M6 awaiting review** (branch `m6-photos`): photos (doc §6 step 6, §3.12): browser resize, private bucket, cover and per-step, imported photos linked.
 - Later milestones follow doc §6.
 
 ## Non-negotiable rules
@@ -42,3 +42,4 @@
 - `pnpm db:pull`: regenerate `db/schema.ts` after a migration
 - `pnpm test:e2e`: Playwright flows against `pnpm dev` + local Supabase (first time: `npx playwright install chromium`). It also starts `e2e/fixture-server.mjs` (recipe pages on 127.0.0.1:4010). The same server mocks the Claude API. If you start `pnpm dev` yourself, start it as `IMPORT_ALLOW_HOSTS=127.0.0.1:4010 ANTHROPIC_BASE_URL=http://127.0.0.1:4010 ANTHROPIC_API_KEY=e2e-mock pnpm dev`, or the import flows can't fetch the pages and the AI flows would call the real API (with a real key in `.env.local`) or none.
 - `pnpm lint`, `pnpm build`
+- Next dev may keep a stale server action after its imports change (seen in M6): if an action behaves like older code, change the action file's content (a touch isn't enough) or restart `pnpm dev`.

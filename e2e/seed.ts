@@ -65,3 +65,20 @@ export async function deleteAccount(email: string): Promise<void> {
     await client.end();
   }
 }
+
+/** A user's photo rows and stored files (doc §3.12), to check what a save left behind. */
+export async function photoCounts(email: string): Promise<{ rows: number; files: number }> {
+  const { db, client } = createDb(URL);
+  try {
+    const [r] = await db.execute<{ rows: number; files: number }>(sql`
+      select
+        (select count(*)::int from recipe_images i join recipes r on r.id = i.recipe_id
+           join auth.users u on u.id = r.owner_id where u.email = ${email}) as rows,
+        (select count(*)::int from storage.objects o join auth.users u on (storage.foldername(o.name))[1] = u.id::text
+           where o.bucket_id = 'photos' and u.email = ${email}) as files`);
+    return r;
+  } finally {
+    await client.end();
+  }
+}
+
