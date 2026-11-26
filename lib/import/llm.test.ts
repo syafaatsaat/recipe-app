@@ -67,7 +67,7 @@ describe("toExtracted", () => {
         title: "Best soup ever",
         yieldText: "Serves 12",
         prepMinutes: -5,
-        cookMinutes: 1.5,
+        cookMinutes: 20_000,
         ingredients: [...answer().ingredients, { section: "Secret", text: "1 tsp truffle oil" }, { section: null, text: "  " }],
         steps: [...answer().steps, "Garnish with truffle shavings and gold leaf.", "!!!"],
       }),

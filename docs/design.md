@@ -61,7 +61,7 @@
    - **When:** a link whose page has no JSON-LD or microdata (saved as `method = 'llm'`, always reviewed), and the flagged lines of any import (at most 40, one call, during the import action, never on page view).
    - **Suggestions, not rewrites:** an AI reading of a flagged line is stored in `raw_payload.lineHints` and offered on the review as "AI suggests…" with **Use this**; the parser's reading stays the default and the line stays flagged until tapped.
    - **Checked, not trusted:** output is Zod-validated, units must be known codes, quantities finite and ≤ `MAX_QUANTITY`; every extracted ingredient line must appear in the page text (invented or injected lines are dropped), steps need most of their words in the page. Page text is sent as untrusted data; the model has no tools.
-   - **Cost:** thinking off, effort `low`, 20 s timeout, no retries in-request; at most 20 AI calls per user per day, counted from `import_jobs`. No prompt caching (the prompt is below the minimum cacheable length).
+   - **Cost:** thinking off, effort `low`, 20 s timeout, no retries in-request; at most 20 AI calls per user per day, counted from `llm_calls` (one row per call with its token counts; owners can read theirs but not write them, because `import_jobs` is owner-editable and a cap counted there could be reset). No prompt caching (the prompt is below the minimum cacheable length).
 
 ## 4. Schema (Postgres)
 
@@ -74,6 +74,7 @@
 | `…002_triggers.sql` | profile row on signup, `recipes.updated_at` |
 | `…003_import_jobs_paste.sql` | `import_jobs.url` nullable for pasted text, with a CHECK that link imports keep one (M5) |
 | `…004_recipes_oven_unit.sql` | `recipes.oven_temp_unit` ('F'/'C'), only with a temperature (§3.10, M5) |
+| `…005_llm_calls.sql` | `llm_calls`: every AI call (kind, ok, tokens), select-only for its owner, written by the server (§3.11, M5b) |
 
 Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks) and [`import_jobs.test.sql`](../supabase/tests/import_jobs.test.sql) (5). Seed: [`supabase/seed.sql`](../supabase/seed.sql).
 

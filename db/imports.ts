@@ -3,7 +3,7 @@
 import { and, count, desc, eq, gt, sql } from "drizzle-orm";
 import type { ExtractedRecipe } from "@/lib/import/extract";
 import type { Db } from "./client";
-import { importJobs, recipes } from "./schema";
+import { importJobs, llmCalls, recipes } from "./schema";
 import { withUser } from "./withUser";
 
 export type ImportMethod = ExtractedRecipe["method"];
@@ -79,4 +79,27 @@ export async function findBySourceUrl(
       .limit(1),
   );
   return row ?? null;
+}
+
+/** AI calls a user may make per day (doc §3.11). */
+export const DAILY_LLM_CALLS = 20;
+
+/** The user's AI calls in the last 24 hours, failed ones included (they cost too). */
+export async function llmCallsToday(db: Db, userId: string): Promise<number> {
+  const [row] = await withUser(db, userId, (tx) =>
+    tx.select({ n: count() }).from(llmCalls).where(gt(llmCalls.createdAt, sql`now() - interval '1 day'`)),
+  );
+  return row.n;
+}
+
+/**
+ * Records one AI call. Users can't write llm_calls (so they can't reset the cap), so this
+ * runs as the server's own role, not through withUser; the owner comes from requireUserId.
+ */
+export async function recordLlmCall(
+  db: Db,
+  userId: string,
+  call: { kind: "recipe" | "lines"; ok: boolean; inputTokens: number; outputTokens: number },
+): Promise<void> {
+  await db.insert(llmCalls).values({ ownerId: userId, ...call });
 }

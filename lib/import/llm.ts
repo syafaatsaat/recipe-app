@@ -46,8 +46,8 @@ export const llmRecipeSchema = z.object({
   title: z.string().nullable(),
   description: z.string().nullable(),
   yieldText: z.string().nullable().describe('as written, e.g. "Serves 4" or "24 cookies"'),
-  prepMinutes: z.number().int().nullable(),
-  cookMinutes: z.number().int().nullable(),
+  prepMinutes: z.number().nullable(),
+  cookMinutes: z.number().nullable(),
   ingredients: z
     .array(z.object({ section: z.string().nullable(), text: z.string() }))
     .describe("each ingredient line copied exactly as it appears on the page"),
@@ -58,7 +58,7 @@ export type LlmRecipe = z.infer<typeof llmRecipeSchema>;
 export const llmLinesSchema = z.object({
   lines: z.array(
     z.object({
-      index: z.number().int(),
+      index: z.number(),
       quantity: z.number().nullable(),
       quantityMax: z.number().nullable().describe("the upper end of a range like 2-3, else null"),
       unit: z.enum(UNIT_CODES).nullable().describe("null when the unit is not in the list"),
@@ -103,7 +103,7 @@ const norm = (s: string) =>
 
 const words = (s: string) => norm(s).split(" ").filter((w) => w.length >= 3);
 
-const minutes = (n: number | null) => (n !== null && Number.isInteger(n) && n > 0 && n <= 10_000 ? n : null);
+const minutes = (n: number | null) => (n !== null && n >= 1 && n <= 10_000 ? Math.round(n) : null);
 
 /**
  * The model's answer as an extracted recipe, keeping only what the page says: an

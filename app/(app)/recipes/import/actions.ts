@@ -3,16 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { attachRecipe, createImportJob, getImportJob, importsInLastHour } from "@/db/imports";
+import { attachRecipe, createImportJob, DAILY_LLM_CALLS, getImportJob, importsInLastHour, llmCallsToday, recordLlmCall } from "@/db/imports";
 import { createRecipe } from "@/db/recipes";
 import { endMissingAccount, isMissingAccount, requireUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { fetchPage } from "@/lib/fetch-page";
 import { toImportDraft } from "@/lib/import/draft";
-import { extractRecipe, extractedRecipeSchema } from "@/lib/import/extract";
-import { FLAG_BELOW } from "@/lib/import/parse-line";
+import { extractRecipe, extractedRecipeSchema, type ExtractedRecipe } from "@/lib/import/extract";
+import { MAX_HINT_LINES, pageMeta, pageText, toExtracted, toHints } from "@/lib/import/llm";
+import { readLines, readRecipe, type LlmClient, type LlmResult } from "@/lib/import/llm-call";
+import { FLAG_BELOW, parseLine } from "@/lib/import/parse-line";
 import { parsePaste } from "@/lib/import/paste";
 import { allowHostsFromEnv, checkUrl } from "@/lib/import/url-guard";
+import { llmClient, llmLog } from "@/lib/llm";
 import { recipeDraftSchema } from "@/lib/recipes/schema";
 
 export type ImportState = { error?: string; value?: string };
@@ -33,6 +36,31 @@ async function failed(where: string, e: unknown, message: string): Promise<{ err
   return { error: message };
 }
 
+/**
+ * One AI call (doc §3.11), when a key is set and the user is under the daily cap; every
+ * call that ran is recorded, failed or not. Null means "carry on without AI".
+ */
+async function withAi<T>(userId: string, kind: "recipe" | "lines", run: (c: LlmClient) => Promise<LlmResult<T>>): Promise<T | null> {
+  const client = llmClient();
+  if (!client) return null;
+  const db = getDb();
+  if ((await llmCallsToday(db, userId)) >= DAILY_LLM_CALLS) return null;
+  const r = await run(client);
+  await recordLlmCall(db, userId, { kind, ok: r.value !== null, inputTokens: r.inputTokens, outputTokens: r.outputTokens });
+  return r.value;
+}
+
+/** AI readings for the flagged lines, kept as suggestions in the payload. */
+async function withHints(userId: string, x: ExtractedRecipe): Promise<ExtractedRecipe> {
+  const flagged = [...new Set(x.ingredients.map((i) => i.text))].filter((t) => parseLine(t).confidence < FLAG_BELOW).slice(0, MAX_HINT_LINES);
+  if (!flagged.length) return x;
+  const out = await withAi(userId, "lines", (c) => readLines(c, flagged, llmLog));
+  const lineHints = out ? toHints(flagged, out) : {};
+  return Object.keys(lineHints).length ? { ...x, lineHints } : x;
+}
+
+const isFlagged = (x: ExtractedRecipe) => toImportDraft(x).parsed.flat().some((p) => p.confidence < FLAG_BELOW);
+
 /** Link → fetch → extract → a job to review. A page we can't read still makes a job: its review offers paste. */
 export async function importFromUrl(_prev: ImportState, form: FormData): Promise<ImportState> {
   const userId = await requireUserId();
@@ -49,12 +77,20 @@ export async function importFromUrl(_prev: ImportState, form: FormData): Promise
     if (!page.ok) {
       jobId = await createImportJob(db, userId, { url, method: null, status: "failed", error: page.error });
     } else {
-      const extracted = extractRecipe(page.html, page.url);
+      let extracted = extractRecipe(page.html, page.url);
+      if (!extracted) {
+        // no recipe data: let the model read the page, keeping only what the page says
+        const text = pageText(page.html);
+        const out = await withAi(userId, "recipe", (c) => readRecipe(c, text, llmLog));
+        extracted = out ? toExtracted(out, text, pageMeta(page.html, page.url)) : null;
+      }
       if (!extracted) {
         jobId = await createImportJob(db, userId, { url, method: null, status: "failed", error: "No recipe data on that page." });
       } else {
-        const flagged = toImportDraft(extracted).parsed.flat().some((p) => p.confidence < FLAG_BELOW);
-        jobId = await createImportJob(db, userId, { url, method: extracted.method, status: flagged ? "partial" : "ok", rawPayload: extracted });
+        extracted = await withHints(userId, extracted);
+        // an AI-read page is always reviewed as needing a check
+        const status = extracted.method === "llm" || isFlagged(extracted) ? "partial" : "ok";
+        jobId = await createImportJob(db, userId, { url, method: extracted.method, status, rawPayload: extracted });
       }
     }
   } catch (e) {
@@ -79,14 +115,14 @@ export async function importFromText(_prev: ImportState, form: FormData): Promis
   if (!extracted.ingredients.length && !extracted.steps.length) {
     return { error: "Couldn’t find a recipe in that text. Include the ingredients, one per line.", value };
   }
-  const flagged = toImportDraft(extracted).parsed.flat().some((p) => p.confidence < FLAG_BELOW);
   let jobId: string;
   try {
+    const hinted = await withHints(userId, extracted);
     jobId = await createImportJob(db, userId, {
       url: source?.url ?? null,
       method: "paste",
-      status: flagged ? "partial" : "ok",
-      rawPayload: { ...extracted, url: source?.url ?? null, siteName: source?.url ? new URL(source.url).hostname.replace(/^www\./, "") : null },
+      status: isFlagged(hinted) ? "partial" : "ok",
+      rawPayload: { ...hinted, url: source?.url ?? null, siteName: source?.url ? new URL(source.url).hostname.replace(/^www\./, "") : null },
     });
   } catch (e) {
     return { ...(await failed("importFromText failed", e, "Couldn’t read that text. Try again.")), value };
