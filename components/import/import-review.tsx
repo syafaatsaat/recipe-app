@@ -3,6 +3,7 @@
 // The import review screen (doc §8, canvas WfImport): every line shows the text it
 // came from next to how it was read; low-confidence lines are flagged with a
 // one-tap fix. Importing doesn't wait for every flag: fix the rest in the editor.
+import { X } from "lucide-react";
 import Link from "next/link";
 import { useId, useState, useTransition } from "react";
 import { cn } from "cn";
@@ -10,7 +11,7 @@ import { confirmImport } from "@/app/(app)/recipes/import/actions";
 import { yieldText } from "@/components/recipes/format";
 import { Button } from "@/components/ui/button";
 import { formatNumberFor, formatRange, unitLabel } from "@/lib/culinary/format";
-import type { ImportSource } from "@/lib/import/draft";
+import { lineKey, reviewedDraft, type ImportSource } from "@/lib/import/draft";
 import { FLAG_BELOW, type ParsedLine } from "@/lib/import/parse-line";
 import type { RecipeDraft } from "@/lib/recipes/schema";
 import { PasteForm } from "./import-forms";
@@ -70,6 +71,32 @@ export function FailedImport({ jobId, url, error }: { jobId: string; url: string
   );
 }
 
+function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="-mt-2 -mr-2.5 flex size-11 flex-none items-center justify-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
+      <X className="size-[18px]" strokeWidth={1.8} aria-hidden />
+    </button>
+  );
+}
+
+/** A removed line or step stays in place, struck through, so a slip is one tap to undo. */
+function Removed({ text, what, onUndo, className }: { text: string; what: string; onUndo: () => void; className?: string }) {
+  return (
+    <li data-removed className={cn("flex items-center gap-2 border-b border-border py-2", className)}>
+      <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground line-through">{text}</span>
+      <span className="sr-only">{what} removed.</span>
+      <button type="button" onClick={onUndo} className="flex min-h-11 items-center px-1 text-sm font-medium text-primary">
+        Undo
+      </button>
+    </li>
+  );
+}
+
 function amountChips(l: Line): { text: string; kind: keyof typeof CHIPS }[] {
   if (l.quantity === null) return [];
   const qty = l.quantityMax !== null ? formatRange(l.quantity, l.quantityMax, null) : formatNumberFor(l.quantity, l.unitCode);
@@ -84,12 +111,14 @@ function ReviewLine({
   match,
   accepted,
   onAccept,
+  onRemove,
 }: {
   line: Line;
   parse: ParsedLine;
   match: string | null;
   accepted: boolean;
   onAccept: () => void;
+  onRemove: () => void;
 }) {
   const low = parse.confidence < FLAG_BELOW && !accepted;
   const chips = [
@@ -113,7 +142,10 @@ function ReviewLine({
           <span className="font-mono">{parse.confidence.toFixed(2)}</span>
         </p>
       )}
-      <p className="mb-2 font-mono text-xs leading-snug text-muted-foreground">{parse.raw}</p>
+      <div className="mb-2 flex items-start gap-2">
+        <p className="min-w-0 flex-1 font-mono text-xs leading-snug text-muted-foreground">{parse.raw}</p>
+        <RemoveButton label={`Remove ingredient: ${parse.raw}`} onClick={onRemove} />
+      </div>
       <div className="flex flex-wrap gap-1.5" aria-label="Read as">
         {chips.map((c, i) => (
           <span key={i} className={CHIPS[c.kind]}>
@@ -158,25 +190,30 @@ export function ImportReview({
   duplicate: { id: string; title: string; createdAt: string } | null;
 }) {
   const [accepted, setAccepted] = useState<Set<string>>(() => new Set());
+  const [removedLines, setRemovedLines] = useState<Set<string>>(() => new Set());
+  const [removedSteps, setRemovedSteps] = useState<Set<number>>(() => new Set());
+  const toggle = <T,>(set: Set<T>, v: T) => {
+    const next = new Set(set);
+    if (next.has(v)) next.delete(v);
+    else next.add(v);
+    return next;
+  };
   const [showSteps, setShowSteps] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const uid = useId();
 
-  const flagged = parsed.flatMap((sec, si) => sec.map((p, li) => (p.confidence < FLAG_BELOW && !accepted.has(`${si}-${li}`) ? 1 : 0))).reduce<number>((a, b) => a + b, 0);
-  const lineCount = draft.sections.reduce((n, s) => n + s.ingredients.length, 0);
+  const keys = parsed.flatMap((sec, si) => sec.map((p, li) => ({ key: lineKey(si, li), p })));
+  const kept = keys.filter(({ key }) => !removedLines.has(key));
+  const flagged = kept.filter(({ key, p }) => p.confidence < FLAG_BELOW && !accepted.has(key)).length;
+  const lineCount = kept.length;
+  const stepCount = draft.steps.length - removedSteps.size;
   const made = yieldText(draft.yieldQty, draft.yieldUnit);
   const site = source.siteName ?? hostOf(source.url);
 
   const doImport = () => {
     setError(null);
-    const out: RecipeDraft = {
-      ...draft,
-      sections: draft.sections.map((s, si) => ({
-        ...s,
-        ingredients: s.ingredients.map((l, li) => (accepted.has(`${si}-${li}`) ? { ...l, parseConfidence: 1 } : l)),
-      })),
-    };
+    const out = reviewedDraft(draft, { accepted, removedLines, removedSteps });
     startTransition(async () => {
       const r = await confirmImport(jobId, out);
       if (r?.error) setError(r.error);
@@ -225,16 +262,22 @@ export function ImportReview({
               <h3 className="pt-4 text-xs tracking-[0.12em] text-muted-foreground uppercase">{s.title}</h3>
             )}
             <ul className="flex flex-col">
-              {s.ingredients.map((l, li) => (
-                <ReviewLine
-                  key={li}
-                  line={l}
-                  parse={parsed[si][li]}
-                  match={matched[si][li]}
-                  accepted={accepted.has(`${si}-${li}`)}
-                  onAccept={() => setAccepted((a) => new Set(a).add(`${si}-${li}`))}
-                />
-              ))}
+              {s.ingredients.map((l, li) => {
+                const key = lineKey(si, li);
+                return removedLines.has(key) ? (
+                  <Removed key={li} text={parsed[si][li].raw} what="Ingredient" onUndo={() => setRemovedLines((r) => toggle(r, key))} />
+                ) : (
+                  <ReviewLine
+                    key={li}
+                    line={l}
+                    parse={parsed[si][li]}
+                    match={matched[si][li]}
+                    accepted={accepted.has(key)}
+                    onAccept={() => setAccepted((a) => new Set(a).add(key))}
+                    onRemove={() => setRemovedLines((r) => toggle(r, key))}
+                  />
+                );
+              })}
             </ul>
           </div>
         ))}
@@ -243,7 +286,7 @@ export function ImportReview({
       <section aria-labelledby={`${uid}method`} className="flex flex-col gap-3">
         <div className="flex items-center justify-between border-y border-border py-3.5">
           <h2 id={`${uid}method`} className="text-lg font-medium">
-            Method · {draft.steps.length} {draft.steps.length === 1 ? "step" : "steps"}
+            Method · {stepCount} {stepCount === 1 ? "step" : "steps"}
           </h2>
           {draft.steps.length > 0 && (
             <button
@@ -258,13 +301,20 @@ export function ImportReview({
           )}
         </div>
         {showSteps && (
-          <ol id={`${uid}steps`} className="flex flex-col gap-3 text-[15px] leading-relaxed">
-            {draft.steps.map((st, i) => (
-              <li key={i} className="grid grid-cols-[28px_minmax(0,1fr)]">
-                <span className="font-mono text-primary">{i + 1}</span>
-                <span>{st.body}</span>
-              </li>
-            ))}
+          <ol id={`${uid}steps`} className="flex flex-col text-[15px] leading-relaxed">
+            {draft.steps.map((st, i) => {
+              if (removedSteps.has(i)) {
+                return <Removed key={i} text={st.body} what="Step" onUndo={() => setRemovedSteps((r) => toggle(r, i))} />;
+              }
+              const n = i + 1 - [...removedSteps].filter((r) => r < i).length;
+              return (
+                <li key={i} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-start gap-x-1 border-b border-border py-2.5">
+                  <span className="font-mono text-primary">{n}</span>
+                  <span>{st.body}</span>
+                  <RemoveButton label={`Remove step ${n}`} onClick={() => setRemovedSteps((r) => toggle(r, i))} />
+                </li>
+              );
+            })}
           </ol>
         )}
       </section>

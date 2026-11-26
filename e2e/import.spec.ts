@@ -156,6 +156,38 @@ test("paste from the New menu keeps sections", async ({ page }) => {
   await expect(page.getByText("A tender loaf with a sharp glaze.")).toBeVisible();
 });
 
+test("lines read wrongly can be removed from the review, with undo", async ({ page }) => {
+  await signUp(page, uniqueEmail("import-remove"));
+  await page.goto("/recipes/import?paste=1");
+  await page.getByLabel("Recipe text").filter({ visible: true }).fill(
+    ["Buttered toast", "2 slices bread", "1 tbsp butter", "12 comments", "Toast the bread.", "Subscribe to our newsletter", "Spread the butter."].join("\n"),
+  );
+  await page.getByRole("button", { name: "Read pasted text" }).click();
+  await expect(page.getByRole("heading", { name: "Buttered toast" })).toBeVisible(AFTER_SUBMIT);
+
+  // a stray ingredient: remove, undo, remove again
+  await page.getByRole("button", { name: "Remove ingredient: 2 slices bread" }).click();
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByRole("button", { name: "Remove ingredient: 2 slices bread" })).toBeVisible();
+  await page.getByRole("button", { name: "Remove ingredient: 12 comments" }).click();
+  await expect(page.getByRole("button", { name: "Undo" })).toHaveCount(1);
+
+  // a stray step
+  await expect(page.getByRole("heading", { name: "Method · 3 steps" })).toBeVisible();
+  await page.getByRole("button", { name: "Looks fine. Show" }).click();
+  await page.getByRole("listitem").filter({ hasText: "Subscribe to our newsletter" }).getByRole("button", { name: /Remove step/ }).click();
+  await expect(page.getByRole("heading", { name: "Method · 2 steps" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove step 2" })).toBeVisible(); // renumbered
+
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, AFTER_SUBMIT);
+  await expect(page.getByRole("heading", { name: "Buttered toast" })).toBeVisible();
+  await expect(page.getByText("12 comments").filter({ visible: true })).toHaveCount(0);
+  await expect(page.getByText("Subscribe to our newsletter").filter({ visible: true })).toHaveCount(0);
+  await expect(page.getByText("Spread the butter.")).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: "slices bread" }).filter({ visible: true })).toHaveCount(1);
+});
+
 test("private addresses are refused with a friendly error", async ({ page }) => {
   await signUp(page, uniqueEmail("import-ssrf"));
   await page.goto("/recipes/import");

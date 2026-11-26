@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { recipeDraftSchema } from "@/lib/recipes/schema";
-import { ovenTempFromSteps, parseYield, toImportDraft } from "./draft";
+import { lineKey, ovenTempFromSteps, parseYield, reviewedDraft, toImportDraft } from "./draft";
 import { extractRecipe, isoMinutes, plainText, withSections } from "./extract";
 import { JSONLD_GRAPH, JSONLD_SIMPLE, MICRODATA, NO_RECIPE, PASTE_BLOG_CARD, PASTE_FULL_CARD, PASTE_NO_HEADINGS, PASTE_WITH_HEADINGS } from "./fixtures";
 import { durationMinutes, parsePaste } from "./paste";
@@ -229,6 +229,39 @@ describe("toImportDraft", () => {
     expect(draft.ovenTempC).toBe(180);
     expect(draft).toMatchObject({ yieldQty: 8, yieldUnit: "servings" });
     expect(recipeDraftSchema.safeParse(draft).success).toBe(true);
+  });
+
+  it("applies the review: removed lines and steps go, accepted lines are checked", () => {
+    const { draft } = toImportDraft(parsePaste(PASTE_WITH_HEADINGS));
+    const none = { accepted: new Set<string>(), removedLines: new Set<string>(), removedSteps: new Set<number>() };
+    expect(reviewedDraft(draft, none)).toEqual(draft);
+
+    const out = reviewedDraft(draft, {
+      accepted: new Set([lineKey(0, 2)]),
+      removedLines: new Set([lineKey(0, 0)]),
+      removedSteps: new Set([0, 3]),
+    });
+    expect(out.sections[0].ingredients.map((l) => l.rawText)).toEqual(["225g caster sugar", "4 eggs"]);
+    expect(out.sections[0].ingredients[1].parseConfidence).toBe(1);
+    expect(out.steps.map((s) => s.body)).toEqual(["Beat everything together and spoon into a 9x5 loaf tin.", "Bake for 45 minutes."]);
+    expect(recipeDraftSchema.safeParse(out).success).toBe(true);
+  });
+
+  it("drops a section emptied by the review, and keeps one when all lines go", () => {
+    const { draft } = toImportDraft(parsePaste(PASTE_WITH_HEADINGS));
+    const keep = (removed: string[]) =>
+      reviewedDraft(draft, { accepted: new Set(), removedLines: new Set(removed), removedSteps: new Set() });
+
+    const noDrizzle = keep([lineKey(1, 0), lineKey(1, 1)]);
+    expect(noDrizzle.sections).toHaveLength(1);
+    expect(noDrizzle.sections[0].title).toBeNull(); // "Ingredients" only told the sections apart
+
+    const onlyDrizzle = keep([lineKey(0, 0), lineKey(0, 1), lineKey(0, 2)]);
+    expect(onlyDrizzle.sections.map((s) => s.title)).toEqual(["For the drizzle"]);
+
+    const empty = keep([lineKey(0, 0), lineKey(0, 1), lineKey(0, 2), lineKey(1, 0), lineKey(1, 1)]);
+    expect(empty.sections).toEqual([{ title: null, ingredients: [] }]);
+    expect(recipeDraftSchema.safeParse(empty).success).toBe(true);
   });
 
   it("names untitled sections after the first", () => {

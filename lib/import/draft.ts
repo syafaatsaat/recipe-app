@@ -93,3 +93,35 @@ export function toImportDraft(x: ExtractedRecipe): ImportDraft {
     source: { method: x.method, url: x.url, siteName: x.siteName, imageUrl: x.imageUrl },
   };
 }
+
+/** What the reviewer did: "si-li" keys for ingredient lines, indexes for steps. */
+export interface ReviewChoices {
+  accepted: ReadonlySet<string>;
+  removedLines: ReadonlySet<string>;
+  removedSteps: ReadonlySet<number>;
+}
+
+export const lineKey = (si: number, li: number) => `${si}-${li}`;
+
+/**
+ * The draft to save after review: removed lines and steps left out, accepted lines
+ * marked checked (confidence 1). A section left empty goes, unless it's the last one;
+ * one section left on its own drops the title it only needed to tell sections apart.
+ */
+export function reviewedDraft(draft: RecipeDraft, c: ReviewChoices): RecipeDraft {
+  const sections = draft.sections
+    .map((s, si) => ({
+      ...s,
+      ingredients: s.ingredients
+        .map((l, li) => ({ l, key: lineKey(si, li) }))
+        .filter(({ key }) => !c.removedLines.has(key))
+        .map(({ l, key }) => (c.accepted.has(key) ? { ...l, parseConfidence: 1 } : l)),
+    }))
+    .filter((s) => s.ingredients.length > 0);
+  if (sections.length === 1 && draft.sections.length > 1 && sections[0].title === "Ingredients") sections[0].title = null;
+  return {
+    ...draft,
+    sections: sections.length ? sections : [{ title: null, ingredients: [] }],
+    steps: draft.steps.filter((_, i) => !c.removedSteps.has(i)),
+  };
+}
