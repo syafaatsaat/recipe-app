@@ -4,6 +4,10 @@ import { signUp, uniqueEmail } from "./helpers";
 // Import from a link or pasted text (doc §6 step 5), against the hand-written pages
 // that e2e/fixture-server.mjs serves (allowed via IMPORT_ALLOW_HOSTS, never in production).
 const SITE = "http://127.0.0.1:4010";
+// This spec runs before the others, so on a cold .next the first submit also compiles
+// the action, the review route and the recipe page: allow for that after each submit.
+const AFTER_SUBMIT = { timeout: 45_000 };
+test.describe.configure({ timeout: 120_000 });
 
 const amountOf = (page: Page, name: string) =>
   page.getByRole("listitem").filter({ hasText: name }).locator("span").first();
@@ -20,7 +24,7 @@ test("link import: review, one-tap fix, import with the credit; stick becomes 4 
   await signUp(page, uniqueEmail("import-link"));
   await importLink(page, `${SITE}/lemon-cake`);
 
-  await expect(page).toHaveURL(/\/recipes\/import\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/recipes\/import\/[0-9a-f-]{36}$/, AFTER_SUBMIT);
   const reviewUrl = page.url();
   await expect(page.getByRole("heading", { name: "Lemon olive oil cake" })).toBeVisible();
   await expect(page.getByText("From Test Kitchen · 8 slices")).toBeVisible();
@@ -43,7 +47,7 @@ test("link import: review, one-tap fix, import with the credit; stick becomes 4 
   await expect(page.getByText("Fold in the flour, then the oil and butter.")).toBeVisible();
 
   await page.getByRole("button", { name: "Import", exact: true }).click();
-  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, AFTER_SUBMIT);
   await expect(page.getByRole("heading", { name: "Lemon olive oil cake" })).toBeVisible();
   await expect(page.getByRole("link", { name: "From Test Kitchen ↗" })).toHaveAttribute("href", `${SITE}/lemon-cake`);
   await expect(amountOf(page, "unsalted butter")).toHaveText("4 oz");
@@ -60,9 +64,9 @@ test("link import: review, one-tap fix, import with the credit; stick becomes 4 
 test("a flagged line imported as is shows its original text in the editor until it's edited", async ({ page }) => {
   await signUp(page, uniqueEmail("import-later"));
   await importLink(page, `${SITE}/lemon-cake`);
-  await expect(page.getByText("1 to check")).toBeVisible();
+  await expect(page.getByText("1 to check")).toBeVisible(AFTER_SUBMIT);
   await page.getByRole("button", { name: "Import", exact: true }).click();
-  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, AFTER_SUBMIT);
 
   await page.goto(`${page.url()}/edit`);
   const hint = page.getByText("Check it, then edit or keep it.").filter({ visible: true });
@@ -76,27 +80,27 @@ test("a flagged line imported as is shows its original text in the editor until 
 test("microdata page: sticks of butter become ounces", async ({ page }) => {
   await signUp(page, uniqueEmail("import-micro"));
   await importLink(page, `${SITE}/shortbread`);
-  await expect(page.getByRole("heading", { name: "Brown butter shortbread" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Brown butter shortbread" })).toBeVisible(AFTER_SUBMIT);
   await expect(page.getByText("A stick = 4 oz")).toBeVisible();
   await page.getByRole("button", { name: "Import", exact: true }).click();
-  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, AFTER_SUBMIT);
   await expect(amountOf(page, "butter")).toHaveText("8 oz");
 });
 
 test("a page with no recipe offers paste, which keeps the link as the credit", async ({ page }) => {
   await signUp(page, uniqueEmail("import-fallback"));
   await importLink(page, `${SITE}/about`);
-  await expect(page.getByText("Couldn’t read a recipe from that page.")).toBeVisible();
+  await expect(page.getByText("Couldn’t read a recipe from that page.")).toBeVisible(AFTER_SUBMIT);
   await expect(page.getByText("Failed")).toBeVisible();
 
   await page.getByLabel("Paste the text instead").filter({ visible: true }).fill(
     "Quick pancakes\n1 cup flour\n1 tbsp sugar\n1 cup milk\n1 egg\nWhisk everything until smooth.\nCook on a hot pan, then flip.",
   );
   await page.getByRole("button", { name: "Read pasted text" }).click();
-  await expect(page.getByRole("heading", { name: "Quick pancakes" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Quick pancakes" })).toBeVisible(AFTER_SUBMIT);
   await expect(page.getByText("Pasted", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Import", exact: true }).click();
-  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, AFTER_SUBMIT);
   await expect(page.getByRole("link", { name: "From 127.0.0.1 ↗" })).toHaveAttribute("href", `${SITE}/about`);
 });
 
@@ -124,12 +128,12 @@ test("paste from the New menu keeps sections", async ({ page }) => {
     ].join("\n"),
   );
   await page.getByRole("button", { name: "Read pasted text" }).click();
-  await expect(page.getByRole("heading", { name: "Lemon drizzle loaf" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lemon drizzle loaf" })).toBeVisible(AFTER_SUBMIT);
   await expect(page.getByText("From pasted text · 8 servings")).toBeVisible();
   await expect(page.getByRole("heading", { name: "For the drizzle" })).toBeVisible();
   await page.getByRole("button", { name: "Import", exact: true }).click();
 
-  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, AFTER_SUBMIT);
   await expect(page.getByRole("heading", { name: "For the drizzle" })).toBeVisible();
   await expect(page.getByText(/From .* ↗/)).toHaveCount(0);
   await expect(page.getByText(/Oven 180 °C/)).toBeVisible();
@@ -141,7 +145,7 @@ test("private addresses are refused with a friendly error", async ({ page }) => 
   for (const url of ["http://127.0.0.1:54321/rest/v1/", "http://localhost:3000/recipes", "file:///etc/passwd"]) {
     await page.getByLabel("Recipe link").filter({ visible: true }).fill(url);
     await page.getByRole("button", { name: "Read recipe" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toHaveText(/That address can’t be imported\.|That doesn’t look like a web address/);
+    await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toHaveText(/That address can’t be imported\.|That doesn’t look like a web address/, AFTER_SUBMIT);
     await expect(page).toHaveURL(/\/recipes\/import$/);
   }
 });
