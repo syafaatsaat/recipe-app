@@ -189,6 +189,12 @@ describe("parsePaste", () => {
     expect(r.steps).toEqual(["Brown the butter and let it cool.", "Mix in the flour and bake 12 minutes."]);
   });
 
+  it("keeps real lines that look a little like widgets", () => {
+    const r = parsePaste("Soup\nIngredients\n2 stars anise\n1 m-shaped noodle\nMethod\nStir 2x a minute.\nSalt-and-pepper it.");
+    expect(r.ingredients.map((i) => i.text)).toEqual(["2 stars anise", "1 m-shaped noodle"]);
+    expect(r.steps).toEqual(["Stir 2x a minute.", "Salt-and-pepper it."]);
+  });
+
   it("keeps sentences that only start like a card detail", () => {
     const r = parsePaste("Soup\n1 onion\nCourse salt works too, if you have it.\nDiet: vegan\nAuthor notes are below.");
     expect(r.steps).toEqual(["Course salt works too, if you have it.", "Author notes are below."]);

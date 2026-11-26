@@ -115,10 +115,22 @@ American
 Keyword brown butter, cookies
 Calories: 180kcal
 Author Test Kitchen
+pink-wave
 Equipment
 2 baking sheets
 1 stand mixer
 Ingredients
+5 Stars
+4 Stars
+3 Stars
+2 Stars
+1 Star
+Units
+US
+M
+½x
+1x
+2x
 1 cup unsalted butter
 2 cups all-purpose flour
 Instructions

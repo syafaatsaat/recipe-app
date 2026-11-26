@@ -10,9 +10,15 @@ const NOTES_HEADING = /^(?:(?:recipe |cook(?:'|’)?s )?notes?|tips?)\s*:?$/i;
 const SKIP_HEADING = /^(?:equipment|tools|nutrition(?: facts| information| info)?)\s*:?$/i;
 /** recipe-card details we don't store: "Course: Dessert", "Cuisine Italian", or the label alone */
 const CARD_LABEL = /^(course|cuisine|keywords?|calories|author|diet|category|difficulty|nutrition(?: facts)?)\b\s*(:)?\s*(.*)$/i;
-/** buttons and widgets that come along when a recipe card is copied */
+/**
+ * Buttons and widgets that come along when a recipe card is copied: print/pin/rate
+ * buttons, star ratings ("5 Stars" … "1 Star"), the unit toggle ("Units", "US", "M"),
+ * serving multipliers ("1x", "2x"), and image or CSS names on a line of their own
+ * ("pink-wave": lower case, hyphenated, no spaces).
+ */
 const CARD_JUNK =
-  /^(?:print(?: recipe)?|pin(?: recipe)?|save(?: recipe)?|share|jump to (?:recipe|video)|rate (?:this )?recipe|cook mode|prevent your screen from going dark|video|[★☆]+|[\d.]+ from \d+ (?:votes?|ratings?|reviews?)|\d+ (?:votes?|ratings?|reviews?))$/i;
+  /^(?:print(?: recipe)?|pin(?: recipe)?|save(?: recipe)?|share|jump to (?:recipe|video)|rate (?:this )?recipe|cook mode|prevent your screen from going dark|video|[★☆]+|[\d.]+ from \d+ (?:votes?|ratings?|reviews?)|\d+ (?:votes?|ratings?|reviews?)|[1-5](?:\.\d)? stars?|units?|us|m|metric|us customary|imperial|(?:½|¼|\d+(?:\.\d+)?)\s*[x×])$/i;
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)+$/;
 const SUB_HEADING = /^(?:for (?:the )?[a-z][^:]{1,40}|[a-z][a-z ]{1,30}):$/i;
 /** "Serves 8", "Servings: 8 slices", or the label alone with its value on the next line */
 const YIELD_LABEL = /^(?:serves|makes|yields?|servings?|portions?)\b\s*:?\s*(.*)$/i;
@@ -126,7 +132,7 @@ export function parsePaste(text: string): ExtractedRecipe {
       mode = "skip"; // equipment and nutrition lists: until the next heading
       continue;
     }
-    if (mode === "skip" || CARD_JUNK.test(line)) continue;
+    if (mode === "skip" || CARD_JUNK.test(line) || SLUG.test(line)) continue;
     const card = cardLabel(line);
     if (card) {
       dropNext = card === "pendingDrop";
