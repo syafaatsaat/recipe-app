@@ -110,7 +110,9 @@ export async function getRecipe(db: Db, userId: string, id: string): Promise<Sto
       ovenTempC: num(r.ovenTempC),
       ovenUnit: r.ovenTempC !== null && (r.ovenTempUnit === "F" || r.ovenTempUnit === "C") ? r.ovenTempUnit : null,
       sections: draftSections,
-      steps: steps.map((s) => ({ body: s.body })),
+      steps: steps.map((s) => ({ body: s.body, photoId: null })),
+      photos: [],
+      coverPhotoId: null,
     };
 
     const ids = [...new Set(lines.map((l) => l.ingredientId).filter((x): x is string => x !== null))];

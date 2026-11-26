@@ -46,7 +46,9 @@ export async function seedBrownies(email: string): Promise<string> {
           ],
         },
       ],
-      steps: [{ body: "Heat the oven. Line the pan with baking paper." }, { body: "Mix, spread in the pan and bake until just set." }],
+      steps: [{ body: "Heat the oven. Line the pan with baking paper.", photoId: null }, { body: "Mix, spread in the pan and bake until just set.", photoId: null }],
+      photos: [],
+      coverPhotoId: null,
     };
     return await createRecipe(db, userId, draft);
   } finally {

@@ -405,7 +405,7 @@ export function RecipeEditor({
             type="button"
             variant="ghost"
             className="self-start text-primary"
-            onClick={() => set({ steps: [...s.steps, { key: newKey("t"), body: "" }] })}
+            onClick={() => set({ steps: [...s.steps, { key: newKey("t"), body: "", photoId: null }] })}
           >
             <Plus data-icon="inline-start" /> Add step
           </Button>
