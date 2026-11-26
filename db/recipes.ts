@@ -1,10 +1,11 @@
 // Recipe reads and writes. Every function runs through withUser, so RLS decides
 // what the user can see and change; userId must come from lib/auth.ts.
-import { asc, desc, eq, inArray, max, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, max, or, sql } from "drizzle-orm";
 import { recipeDraftSchema, SNAPSHOT_SCHEMA, type RecipeDraft, type RecipeSnapshot } from "@/lib/recipes/schema";
 import type { CatalogIngredient } from "@/lib/recipes/render-input";
 import type { Db, Tx } from "./client";
-import { ingredients, pans, recipeIngredients, recipes, recipeSections, recipeSteps, recipeVersions } from "./schema";
+import { photosOf, syncPhotos, type PhotoInput, type StoredPhoto } from "./photos";
+import { ingredients, pans, recipeImages, recipeIngredients, recipes, recipeSections, recipeSteps, recipeVersions } from "./schema";
 import { withUser } from "./withUser";
 
 /** numeric columns arrive as strings */
@@ -18,6 +19,8 @@ export interface RecipeSummary {
   yieldUnit: string | null;
   panLabel: string | null;
   updatedAt: string;
+  /** the cover's small size (an upload's thumb path) or an imported link */
+  cover: { thumbPath: string | null; externalUrl: string | null } | null;
 }
 
 export interface StoredRecipe {
@@ -31,6 +34,8 @@ export interface StoredRecipe {
   sourceName: string | null;
   /** the linked ingredients, for render() and the editor's chips */
   catalog: Record<string, CatalogIngredient>;
+  /** the photos the draft uses, with where they're stored, to sign or link */
+  photos: StoredPhoto[];
 }
 
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -46,9 +51,12 @@ export async function listRecipes(db: Db, userId: string, q?: string): Promise<R
         yieldUnit: recipes.yieldUnit,
         panLabel: pans.label,
         updatedAt: recipes.updatedAt,
+        coverThumb: recipeImages.thumbPath,
+        coverUrl: recipeImages.externalUrl,
       })
       .from(recipes)
       .leftJoin(pans, eq(pans.id, recipes.panId))
+      .leftJoin(recipeImages, and(eq(recipeImages.recipeId, recipes.id), eq(recipeImages.isCover, true)))
       .where(
         query
           ? or(
@@ -59,7 +67,13 @@ export async function listRecipes(db: Db, userId: string, q?: string): Promise<R
       )
       .orderBy(desc(recipes.updatedAt))
       .limit(200)
-      .then((rows) => rows.map((r) => ({ ...r, yieldQty: num(r.yieldQty) }))),
+      .then((rows) =>
+        rows.map(({ coverThumb, coverUrl, ...r }) => ({
+          ...r,
+          yieldQty: num(r.yieldQty),
+          cover: coverThumb || coverUrl ? { thumbPath: coverThumb, externalUrl: coverUrl } : null,
+        })),
+      ),
   );
 }
 
@@ -67,7 +81,7 @@ export async function getRecipe(db: Db, userId: string, id: string): Promise<Sto
   return withUser(db, userId, async (tx) => {
     const [r] = await tx.select().from(recipes).where(eq(recipes.id, id));
     if (!r) return null;
-    const [sections, lines, steps, versions] = await Promise.all([
+    const [sections, lines, steps, versions, stored] = await Promise.all([
       tx.select().from(recipeSections).where(eq(recipeSections.recipeId, id)).orderBy(asc(recipeSections.position)),
       tx.select().from(recipeIngredients).where(eq(recipeIngredients.recipeId, id)).orderBy(asc(recipeIngredients.position)),
       tx.select().from(recipeSteps).where(eq(recipeSteps.recipeId, id)).orderBy(asc(recipeSteps.position)),
@@ -75,7 +89,13 @@ export async function getRecipe(db: Db, userId: string, id: string): Promise<Sto
         .select({ versionNo: recipeVersions.versionNo, id: recipeVersions.id })
         .from(recipeVersions)
         .where(eq(recipeVersions.recipeId, id)),
+      photosOf(tx, id),
     ]);
+    // a photo is in the draft when it has a place: the cover, or a step that still exists
+    const stepIndex = new Map(steps.map((st, i) => [st.id, i]));
+    const cover = stored.find((p) => p.isCover) ?? null;
+    const photos = stored.filter((p) => p.isCover || (p.stepId !== null && stepIndex.has(p.stepId)));
+    const photoOfStep = new Map(photos.flatMap((p) => (p.stepId !== null && !p.isCover ? [[stepIndex.get(p.stepId)!, p.id] as const] : [])));
 
     const toLine = (l: (typeof lines)[number]) => ({
       quantity: num(l.quantity),
@@ -110,9 +130,9 @@ export async function getRecipe(db: Db, userId: string, id: string): Promise<Sto
       ovenTempC: num(r.ovenTempC),
       ovenUnit: r.ovenTempC !== null && (r.ovenTempUnit === "F" || r.ovenTempUnit === "C") ? r.ovenTempUnit : null,
       sections: draftSections,
-      steps: steps.map((s) => ({ body: s.body, photoId: null })),
-      photos: [],
-      coverPhotoId: null,
+      steps: steps.map((s, i) => ({ body: s.body, photoId: photoOfStep.get(i) ?? null })),
+      photos: photos.map((p) => ({ id: p.id, width: p.width, height: p.height, alt: p.alt })),
+      coverPhotoId: cover?.id ?? null,
     };
 
     const ids = [...new Set(lines.map((l) => l.ingredientId).filter((x): x is string => x !== null))];
@@ -130,6 +150,7 @@ export async function getRecipe(db: Db, userId: string, id: string): Promise<Sto
       sourceUrl: r.sourceUrl,
       sourceName: r.sourceName,
       catalog,
+      photos,
     };
   });
 }
@@ -163,7 +184,8 @@ function recipeColumns(draft: RecipeDraft) {
   };
 }
 
-async function writeChildren(tx: Tx, recipeId: string, draft: RecipeDraft) {
+/** Writes sections, lines and steps; returns the new step ids in draft order. */
+async function writeChildren(tx: Tx, recipeId: string, draft: RecipeDraft): Promise<string[]> {
   // One untitled section means "no sections": lines are stored without a section row.
   const sectioned = !(draft.sections.length === 1 && draft.sections[0].title === null);
   const sectionIds = sectioned
@@ -197,9 +219,12 @@ async function writeChildren(tx: Tx, recipeId: string, draft: RecipeDraft) {
     })),
   );
   if (lines.length) await tx.insert(recipeIngredients).values(lines);
-  if (draft.steps.length) {
-    await tx.insert(recipeSteps).values(draft.steps.map((s, i) => ({ recipeId, position: i, body: s.body })));
-  }
+  if (!draft.steps.length) return [];
+  const steps = await tx
+    .insert(recipeSteps)
+    .values(draft.steps.map((s, i) => ({ recipeId, position: i, body: s.body })))
+    .returning({ id: recipeSteps.id, position: recipeSteps.position });
+  return steps.sort((a, b) => a.position - b.position).map((st) => st.id);
 }
 
 async function writeVersion(tx: Tx, recipeId: string, versionNo: number, draft: RecipeDraft, changeNote: string | null) {
@@ -224,6 +249,7 @@ export async function createRecipe(
   userId: string,
   input: RecipeDraft,
   source: RecipeSource = { sourceType: "manual" },
+  photos: PhotoInput = {},
 ): Promise<string> {
   const draft = recipeDraftSchema.parse(input);
   return withUser(db, userId, async (tx) => {
@@ -237,7 +263,8 @@ export async function createRecipe(
         ...recipeColumns(draft),
       })
       .returning({ id: recipes.id });
-    await writeChildren(tx, r.id, draft);
+    const stepIds = await writeChildren(tx, r.id, draft);
+    await syncPhotos(tx, userId, r.id, draft, stepIds, photos);
     await writeVersion(tx, r.id, 1, draft, null);
     return r.id;
   });
@@ -253,6 +280,7 @@ export async function updateRecipe(
   id: string,
   input: RecipeDraft,
   changeNote: string | null = null,
+  photos: PhotoInput = {},
 ): Promise<number | null> {
   const draft = recipeDraftSchema.parse(input);
   return withUser(db, userId, async (tx) => {
@@ -264,7 +292,8 @@ export async function updateRecipe(
     await tx.delete(recipeSteps).where(eq(recipeSteps.recipeId, id));
     await tx.delete(recipeSections).where(eq(recipeSections.recipeId, id));
     await tx.update(recipes).set(recipeColumns(draft)).where(eq(recipes.id, id));
-    await writeChildren(tx, id, draft);
+    const stepIds = await writeChildren(tx, id, draft);
+    await syncPhotos(tx, userId, id, draft, stepIds, photos);
 
     const [{ latest }] = await tx
       .select({ latest: max(recipeVersions.versionNo) })
