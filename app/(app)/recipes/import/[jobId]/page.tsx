@@ -7,7 +7,7 @@ import { findBySourceUrl, getImportJob } from "@/db/imports";
 import { matchMany } from "@/db/ingredients";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { toImportDraft } from "@/lib/import/draft";
+import { importedLine, toImportDraft } from "@/lib/import/draft";
 import { extractedRecipeSchema } from "@/lib/import/extract";
 import { ingredientCandidates } from "@/lib/import/parse-line";
 
@@ -30,8 +30,10 @@ async function Review({ params }: { params: PageProps<"/recipes/import/[jobId]">
   // the parse isn't stored: re-derive it, so parser fixes reach pending reviews too
   const imp = toImportDraft(payload.data);
   const lines = imp.draft.sections.flatMap((s) => s.ingredients);
+  // AI readings of flagged lines (doc §3.11), matched to the catalog like the lines are
+  const hinted = imp.parsed.flatMap((sec) => sec.flatMap((p) => (p.suggestion ? [importedLine({ ...p, fields: p.suggestion, confidence: 1, fix: null })] : [])));
   const [hits, duplicate] = await Promise.all([
-    matchMany(db, userId, lines.map((l) => ingredientCandidates(l.name))),
+    matchMany(db, userId, [...lines, ...hinted].map((l) => ingredientCandidates(l.name))),
     imp.source.url ? findBySourceUrl(db, userId, imp.source.url) : null,
   ]);
   let n = 0;
@@ -42,6 +44,16 @@ async function Review({ params }: { params: PageProps<"/recipes/import/[jobId]">
       return hit?.name ?? null;
     }),
   );
+  let h = 0;
+  const suggestions = imp.parsed.map((sec) =>
+    sec.map((p) => {
+      if (!p.suggestion) return null;
+      const line = hinted[h];
+      const hit = hits[lines.length + h++];
+      line.ingredientId = hit?.id ?? null;
+      return { line, match: hit?.name ?? null, matchId: hit?.id ?? null };
+    }),
+  );
 
   return (
     <ImportReview
@@ -49,6 +61,7 @@ async function Review({ params }: { params: PageProps<"/recipes/import/[jobId]">
       draft={imp.draft}
       parsed={imp.parsed}
       matched={matched}
+      suggestions={suggestions}
       source={imp.source}
       fetchedUrl={job.url}
       duplicate={duplicate}

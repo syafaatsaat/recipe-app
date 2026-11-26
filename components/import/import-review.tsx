@@ -121,6 +121,34 @@ function amountChips(l: Line): { text: string; kind: keyof typeof CHIPS }[] {
   return out;
 }
 
+/** An AI reading of a flagged line (doc §3.11), with its catalog match. */
+export interface Suggestion {
+  line: Line;
+  match: string | null;
+}
+
+function chipsOf(line: Line, match: string | null) {
+  return [
+    ...amountChips(line),
+    match ? { text: `${line.name} ✓`, kind: "ok" as const } : { text: `${line.name} ?`, kind: "miss" as const },
+    ...(line.preparation ? [{ text: line.preparation, kind: "prep" as const }] : []),
+    ...(line.note ? [{ text: line.note, kind: "prep" as const }] : []),
+    ...(line.isOptional ? [{ text: "optional", kind: "prep" as const }] : []),
+  ];
+}
+
+function Chips({ line, match, label }: { line: Line; match: string | null; label: string }) {
+  return (
+    <div className="flex flex-wrap gap-1.5" aria-label={label}>
+      {chipsOf(line, match).map((c, i) => (
+        <span key={i} className={CHIPS[c.kind]}>
+          <Fractions text={c.text} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ReviewLine({
   line,
   parse,
@@ -130,6 +158,9 @@ function ReviewLine({
   onRemove,
   onMove,
   moved = false,
+  suggestion = null,
+  usingSuggestion = false,
+  onSuggestion,
 }: {
   line: Line;
   parse: ParsedLine;
@@ -137,18 +168,17 @@ function ReviewLine({
   accepted: boolean;
   onAccept: () => void;
   onRemove: () => void;
+  suggestion?: Suggestion | null;
+  usingSuggestion?: boolean;
+  /** toggles between the AI reading and the parser's */
+  onSuggestion?: () => void;
   onMove: () => void;
   /** came from the method */
   moved?: boolean;
 }) {
-  const low = parse.confidence < FLAG_BELOW && !accepted;
-  const chips = [
-    ...amountChips(line),
-    match ? { text: `${line.name} ✓`, kind: "ok" as const } : { text: `${line.name} ?`, kind: "miss" as const },
-    ...(line.preparation ? [{ text: line.preparation, kind: "prep" as const }] : []),
-    ...(line.note ? [{ text: line.note, kind: "prep" as const }] : []),
-    ...(line.isOptional ? [{ text: "optional", kind: "prep" as const }] : []),
-  ];
+  const using = usingSuggestion && suggestion !== null;
+  const low = parse.confidence < FLAG_BELOW && !accepted && !using;
+  const shown = using ? suggestion : { line, match };
   return (
     <li
       data-flagged={low || undefined}
@@ -171,15 +201,31 @@ function ReviewLine({
         <MoveButton to="method" what={parse.raw} onClick={onMove} />
         <RemoveButton label={`Remove ingredient: ${parse.raw}`} onClick={onRemove} />
       </div>
-      <div className="flex flex-wrap gap-1.5" aria-label="Read as">
-        {chips.map((c, i) => (
-          <span key={i} className={CHIPS[c.kind]}>
-            <Fractions text={c.text} />
-          </span>
-        ))}
-      </div>
-      {parse.info.length > 0 && <p className="mt-2 text-xs text-muted-foreground">{parse.info.join(" · ")}</p>}
-      {!match && <p className="mt-2 text-xs text-muted-foreground">Not in your ingredients yet, so it can’t show grams. Match it in the editor.</p>}
+      <Chips line={shown.line} match={shown.match} label="Read as" />
+      {using && (
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="flex-1">Using the AI’s reading.</span>
+          <button type="button" onClick={onSuggestion} className="flex min-h-11 items-center px-1 text-sm font-medium text-primary">
+            Undo
+          </button>
+        </p>
+      )}
+      {!using && parse.info.length > 0 && <p className="mt-2 text-xs text-muted-foreground">{parse.info.join(" · ")}</p>}
+      {!shown.match && <p className="mt-2 text-xs text-muted-foreground">Not in your ingredients yet, so it can’t show grams. Match it in the editor.</p>}
+      {low && suggestion && (
+        <div className="mt-2.5 flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
+          <p className="text-xs text-muted-foreground">AI suggests</p>
+          <Chips line={suggestion.line} match={suggestion.match} label="AI suggests" />
+          <Button
+            type="button"
+            onClick={onSuggestion}
+            aria-label={`Use the AI’s reading: ${parse.raw}`}
+            className="h-10 self-start rounded-full px-4"
+          >
+            Use this
+          </Button>
+        </div>
+      )}
       {low && parse.fix && (
         <div className="mt-2.5 flex items-center gap-2.5">
           <p className="flex-1 text-[13px] leading-[1.4]">{parse.fix.text}</p>
@@ -202,6 +248,7 @@ export function ImportReview({
   draft,
   parsed,
   matched,
+  suggestions,
   source,
   fetchedUrl,
   duplicate,
@@ -210,11 +257,15 @@ export function ImportReview({
   draft: RecipeDraft;
   parsed: ParsedLine[][];
   matched: (string | null)[][];
+  /** suggestions[s][i]: the AI reading of a flagged line, with its catalog match */
+  suggestions: (({ line: Line; match: string | null; matchId: string | null }) | null)[][];
   source: ImportSource;
   fetchedUrl: string | null;
   duplicate: { id: string; title: string; createdAt: string } | null;
 }) {
   const [accepted, setAccepted] = useState<Set<string>>(() => new Set());
+  /** lines using the AI's reading */
+  const [suggested, setSuggested] = useState<Set<string>>(() => new Set());
   const [removedLines, setRemovedLines] = useState<Set<string>>(() => new Set());
   const [removedSteps, setRemovedSteps] = useState<Set<number>>(() => new Set());
   const [movedLines, setMovedLines] = useState<Set<string>>(() => new Set());
@@ -248,7 +299,7 @@ export function ImportReview({
     ...linesIn.filter(({ key }) => !removedLines.has(key)).map(({ key, p }) => ({ key, p })),
     ...stepsIn.filter(({ i }) => !removedSteps.has(i)).map(({ i, p }) => ({ key: stepKey(i), p })),
   ];
-  const flagged = kept.filter(({ key, p }) => p.confidence < FLAG_BELOW && !accepted.has(key)).length;
+  const flagged = kept.filter(({ key, p }) => p.confidence < FLAG_BELOW && !accepted.has(key) && !suggested.has(key)).length;
   const lineCount = kept.length;
 
   type StepItem = { id: string; body: string; removed: boolean; remove: () => void; move: () => void; fromIngredients: boolean };
@@ -311,7 +362,11 @@ export function ImportReview({
       movedLines,
       movedSteps,
       stepMatches: new Map([...stepMatches].map(([i, m]) => [i, m?.id ?? null])),
-    });
+      suggested,
+      suggestionMatches: new Map(
+        draft.sections.flatMap((s, si) => s.ingredients.map((_, li) => [lineKey(si, li), suggestions[si]?.[li]?.matchId ?? null] as const)),
+      ),
+    }, parsed);
     startTransition(async () => {
       const r = await confirmImport(jobId, out);
       if (r?.error) setError(r.error);
@@ -347,6 +402,12 @@ export function ImportReview({
         </p>
       )}
 
+      {source.method === "llm" && (
+        <p role="note" className="rounded-xl border border-border bg-card px-4 py-3 text-sm leading-snug">
+          This page had no recipe data, so AI read it. Check it against the original before you import.
+        </p>
+      )}
+
       <section aria-labelledby={`${uid}ing`} className="flex flex-col">
         <div className="flex items-baseline justify-between">
           <h2 id={`${uid}ing`} className="text-lg font-medium">
@@ -379,6 +440,9 @@ export function ImportReview({
                       onAccept={() => setAccepted((a) => new Set(a).add(key))}
                       onRemove={() => setRemovedLines((r) => toggle(r, key))}
                       onMove={() => moveToMethod(key)}
+                      suggestion={suggestions[si]?.[li] ?? null}
+                      usingSuggestion={suggested.has(key)}
+                      onSuggestion={() => setSuggested((u) => toggle(u, key))}
                     />
                   );
                 })}
