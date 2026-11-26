@@ -8,15 +8,15 @@ test("write a recipe, see it rendered, edit it to version 2, delete it", async (
   await page.getByRole("menuitem", { name: /Write from scratch/ }).click();
   await expect(page).toHaveURL(/\/recipes\/new$/);
 
-  await page.getByLabel("Title").fill("Test brownies");
-  await page.getByLabel("Makes", { exact: true }).fill("12");
-  await page.getByLabel("What it makes").fill("squares");
-  await page.getByLabel("Pan").selectOption({ label: "9 in round" });
-  await page.getByLabel("Oven", { exact: true }).fill("350");
+  await page.getByLabel("Title").filter({ visible: true }).fill("Test brownies");
+  await page.getByLabel("Makes", { exact: true }).filter({ visible: true }).fill("12");
+  await page.getByLabel("What it makes").filter({ visible: true }).fill("squares");
+  await page.getByLabel("Pan").filter({ visible: true }).selectOption({ label: "9 in round" });
+  await page.getByLabel("Oven", { exact: true }).filter({ visible: true }).fill("350");
 
-  const amounts = page.getByLabel("Amount");
-  const units = page.getByLabel("Unit", { exact: true });
-  const names = page.getByLabel("Ingredient", { exact: true });
+  const amounts = page.getByLabel("Amount").filter({ visible: true });
+  const units = page.getByLabel("Unit", { exact: true }).filter({ visible: true });
+  const names = page.getByLabel("Ingredient", { exact: true }).filter({ visible: true });
 
   // 1: catalog alias, linked automatically when the field loses focus
   await amounts.nth(0).fill("½");
@@ -32,13 +32,13 @@ test("write a recipe, see it rendered, edit it to version 2, delete it", async (
   await names.nth(1).blur();
   await page.getByRole("button", { name: "espresso powder is not matched. Pick one" }).click();
   await page.getByRole("option", { name: /Add “espresso powder” to my ingredients/ }).click();
-  await page.getByLabel("Weight of 1 cup, in grams (optional)").fill("85");
+  await page.getByLabel("Weight of 1 cup, in grams (optional)").filter({ visible: true }).fill("85");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByRole("button", { name: "Matched to espresso powder. Change" })).toBeVisible();
 
   // 3: no amount → "to taste"
   await names.nth(2).fill("flaky salt");
-  await page.getByLabel("Step 1", { exact: true }).fill("Mix everything and bake until just set.");
+  await page.getByLabel("Step 1", { exact: true }).filter({ visible: true }).fill("Mix everything and bake until just set.");
 
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/);
@@ -53,7 +53,7 @@ test("write a recipe, see it rendered, edit it to version 2, delete it", async (
   await page.getByRole("button", { name: "Recipe options" }).click();
   await page.getByRole("menuitem", { name: "Edit recipe" }).click();
   await expect(page.getByText("Saving makes version 2. Version 1 stays in history.")).toBeVisible();
-  await page.getByLabel("Title").fill("Test brownies, less sweet");
+  await page.getByLabel("Title").filter({ visible: true }).fill("Test brownies, less sweet");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { name: "Test brownies, less sweet" })).toBeVisible();
   await expect(page.getByText(/^Version 2 · updated/)).toBeVisible();
@@ -77,8 +77,8 @@ test("write a recipe, see it rendered, edit it to version 2, delete it", async (
 test("the editor shows what's wrong instead of saving", async ({ page }) => {
   await signUp(page, uniqueEmail("invalid"));
   await page.goto("/recipes/new");
-  await page.getByLabel("Amount").first().fill("lots");
-  await page.getByLabel("Ingredient", { exact: true }).first().fill("sugar");
+  await page.getByLabel("Amount").filter({ visible: true }).first().fill("lots");
+  await page.getByLabel("Ingredient", { exact: true }).filter({ visible: true }).first().fill("sugar");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Some fields need fixing." })).toBeVisible();
   await expect(page.getByText("Give the recipe a title.")).toBeVisible();
@@ -89,7 +89,7 @@ test("the editor shows what's wrong instead of saving", async ({ page }) => {
 test("another account can't open my recipe", async ({ page }) => {
   await signUp(page, uniqueEmail("owner"));
   await page.goto("/recipes/new");
-  await page.getByLabel("Title").fill("Private recipe");
+  await page.getByLabel("Title").filter({ visible: true }).fill("Private recipe");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/);
   const url = page.url();

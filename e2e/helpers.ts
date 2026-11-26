@@ -5,8 +5,8 @@ export const uniqueEmail = (tag: string) => `e2e-${tag}-${Date.now()}-${Math.flo
 
 export async function signUp(page: Page, email: string, password = PASSWORD) {
   await page.goto("/signup");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Email").filter({ visible: true }).fill(email);
+  await page.getByLabel("Password").filter({ visible: true }).fill(password);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/recipes$/);
 }
@@ -31,4 +31,15 @@ export async function latestEmailText(to: string): Promise<string> {
     await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error(`no email for ${to}`);
+}
+
+/**
+ * Next 16 keeps recently visited pages mounted but hidden (React Activity). So:
+ * ids must come from useId() (a fixed id="email" on two pages points the visible
+ * label at the hidden field), and field lookups use .filter({ visible: true }),
+ * because getByLabel also matches the hidden page's fields.
+ */
+export async function expectUniqueIds(page: Page) {
+  const ids = await page.evaluate(() => [...document.querySelectorAll("[id]")].map((e) => e.id));
+  expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
 }

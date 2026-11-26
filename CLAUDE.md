@@ -9,8 +9,9 @@
 - [x] **M0: Foundations.** Doc committed, limits and versions verified (doc §7), scaffold with pinned versions, schema validated on local Supabase (pgTAP tests). Merged.
 - [x] **M1: `lib/culinary/`** (units, conversion, pans, rounding, scaling, render, URL state). 186 tests at merge, ≥95% coverage enforced. Display rules: doc §5. Merged.
 - [x] **M2: Design pass 1.** Direction E, colour/type tokens mapped to shadcn variables, four screens and their components: doc §8, canvas in `docs/design/`. Stick→oz and user ingredients decided (doc §3.6–3.7). Merged.
-- [x] **M3: auth + manual recipe CRUD** (doc §6 step 3). Email + password (doc §3.8), recipe list/view/editor, user ingredients, versions on every save, keep-alive cron. Awaiting review.
-- [ ] **M4 next:** scaling and unit toggle on the recipe page with URL state (doc §6 step 4).
+- [x] **M3: auth + manual recipe CRUD** (doc §6 step 3). Email + password (doc §3.8), recipe list/view/editor, user ingredients, versions on every save, keep-alive cron. Merged.
+- [x] **M4: scaling + units on the recipe page** (doc §6 step 4). Chips, scale sheet (factor/yield/pan), US/Metric, Reset, warnings, copy link; state in the URL. Awaiting review.
+- [ ] **M5 next:** importer (JSON-LD, line parser, review screen, LLM fallback; doc §6 step 5). Gets planned when it starts.
 - Later milestones follow doc §6.
 
 ## Non-negotiable rules
@@ -21,6 +22,8 @@
 - Drizzle connects as `postgres`, which **bypasses RLS**. User-scoped queries must go through `db/withUser.ts`.
 - **Identity comes only from `lib/auth.ts`** (`getUser()`/`requireUserId()`). Never trust a user id from the client, and never use `getSession()` on the server. `proxy.ts` redirects are a convenience, not a guard.
 - With Cache Components on, anything that reads cookies, params or searchParams goes inside `<Suspense>`.
+- Next 16 keeps recently visited pages mounted but hidden. Never hard-code element ids (`id="email"`): use `useId()`. In e2e tests, field lookups use `.filter({ visible: true })`.
+- Scale and units live only in the URL (doc §3.5). `components/recipes/view/recipe-view.tsx` reads them with `useSearchParams` and writes them with `history.replaceState`. Don't add a server round-trip or a history entry per tap.
 - Pin exact dependency versions (no `^`/`~`; `saveExact` is set). Don't bypass pnpm's `minimumReleaseAge` quarantine. Pick an older release instead.
 - `AGENTS.md` comes from Next.js: Next 16 may differ from training data, so check `node_modules/next/dist/docs/` before using Next APIs.
 

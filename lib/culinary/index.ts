@@ -1,7 +1,7 @@
 // Public API of the culinary domain module. Pure TS: no I/O, no React, no DB.
 export { render, sourceSystem, asEntered, type RenderedRecipe, type RenderedIngredient } from "./render";
 export { resolveFactor, type ScaleResult, type ScaleError } from "./scale";
-export { panFactor, type Warning, type BakeHint } from "./pans";
+export { panFactor, panArea, shapeClass, type Warning, type BakeHint } from "./pans";
 export { parseScaleParams, toScaleParams } from "./url";
 export {
   scaleStateSchema, renderInputSchema, ingredientInputSchema, panSchema, unitSystemSchema,

@@ -17,7 +17,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable} ${heading.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
+      {/* Extensions such as Grammarly add attributes to <body> before React hydrates.
+          This silences only <body>'s own attributes, not its children. */}
+      <body className="flex min-h-full flex-col" suppressHydrationWarning>
         {children}
         <Toaster position="top-center" />
       </body>

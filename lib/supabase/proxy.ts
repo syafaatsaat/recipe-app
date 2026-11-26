@@ -35,6 +35,12 @@ export async function updateSession(request: NextRequest) {
   const signedIn = Boolean(data?.claims?.sub);
   const path = request.nextUrl.pathname;
 
+  // Redirect page loads only. A Server Action is a POST that expects an RSC reply:
+  // a 307 to the login page's HTML makes the client throw "An unexpected response
+  // was received from the server". Actions check the user themselves
+  // (requireUserId), and their redirect("/login") is one Next can follow.
+  if (request.method !== "GET" && request.method !== "HEAD") return response;
+
   let target: string | null = null;
   if (path === "/") target = signedIn ? "/recipes" : "/login";
   else if (!signedIn && PROTECTED_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {

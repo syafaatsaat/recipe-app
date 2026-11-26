@@ -49,7 +49,7 @@
 6. **"Stick" of butter is converted at parse time to oz** (decided 2026-11-25). `stick`/`sticks` before butter or margarine becomes `4 oz` per stick ("1½ sticks butter" → 6 oz), stored as `unit_code = 'oz'`, with `raw_text` keeping the original words. It is **not** a `UNIT_CODES` entry, so there's no schema change. Before any other ingredient, "stick" is an unknown unit: low confidence, flagged on the review screen. Because oz is mass, the US view shows oz/lb (rule 3) and Metric shows grams with no density needed: 4 oz → **115 g**, 8 oz → 225 g (checked against `render()`). Built in M5 with a parser test.
 7. **Users can add their own ingredients** (decided 2026-11-25). When a line doesn't match the catalog, the editor and import review offer "Add to my ingredients": an `ingredients` row with the user's `owner_id` (already allowed by schema and RLS). Density is optional. The form asks for "weight of 1 cup in grams", the friendlier question, and stores `g ÷ 236.588` as `density_g_per_ml`. Without a density the line still scales and converts within its own dimension, but never volume↔mass. Built in M3 (editor) and M5 (import review).
 8. **Auth: email + password** (decided 2026-11-25; easy to test, and the public demo account is just a known login). Supabase Auth via `@supabase/ssr`:
-   - `proxy.ts` (Next 16's renamed middleware) refreshes the session cookie on every request with `getClaims()` and does optimistic redirects only.
+   - `proxy.ts` (Next 16's renamed middleware) refreshes the session cookie on every request with `getClaims()` and does optimistic redirects only, for page loads (GET/HEAD). Server Actions are never redirected there: they expect an RSC reply, so they check the user themselves and use `redirect("/login")`.
    - **The security boundary is `lib/auth.ts`** (`getUser()` / `requireUserId()`, which verify the JWT with `getClaims()`; never `getSession()` on the server) **plus RLS**. Every page, Server Action and route that touches user data calls it.
    - `getUser()` calls `await connection()` first: `getClaims()` reads the clock, which Next forbids while prerendering.
    - Email links (sign-up confirmation, password reset) land on `/auth/confirm`, which accepts both the PKCE `?code=` and the `?token_hash=&type=` styles.
@@ -182,14 +182,14 @@ These settle what the pipeline above left open. `lib/culinary/` tests encode eve
 10. **`to_taste` / `fixed`** skip scaling but are still unit-converted.
 11. **Ranges** scale both ends and share one unit, picked from the larger end.
 12. **Leavening warning** fires only when the factor is > 2 or < 0.5 (exactly 2× and 0.5× don't warn).
-13. **Factor** must be finite and within 0.01–100.
+13. **Factor** must be finite and within 0.01–100. This is `lib/culinary`'s hard limit, so any URL in that range renders. The scale sheet's "Multiply by" input accepts only **0.1–20** (decided 2026-11-26, matching the canvas), the realistic range for home cooking.
 14. **Pans:** muffin ↔ non-muffin is unsupported (no reliable cup volume), and so is `other` without `volume_ml`. The UI disables those options. The bake hint is structured (`{ direction: 'shallower' | 'deeper' }`), and the UI writes the wording, with no invented percentages.
 
 ## 6. Build order
 1. Domain module plus tests (units, density seed, pan math, rounding). This has no UI dependency, so it can start before any design work.
 2. ✅ **Done 2026-11-25, see §8.** **Design pass 1: UX wireframes (½–1 day, low-fi).** Cover the 4 screens that drive structure: recipe view with scale/unit controls and the "orig." display, structured ingredient editor, import review/fix, and recipe list. Do it here because these screens decide component boundaries and the editor's data flow. Pick a shadcn theme, type scale and colour tokens. Skip pixel polish.
 3. ✅ **Done 2026-11-25 (M3).** Schema, auth, manual recipe CRUD with structured ingredient editor. Add the daily Supabase keep-alive cron (Vercel Cron hitting a route that runs `select 1`) as soon as the project is deployed. (Built: `/api/keep-alive` and `vercel.json`, daily at 09:00 UTC; it needs `CRON_SECRET` set in Vercel.)
-4. Render with scaling, unit toggle and URL state.
+4. ✅ **Done 2026-11-26 (M4).** Render with scaling, unit toggle and URL state. Built: `ScaleBar`, `UnitToggle` with Reset, `WarningList`, "orig." labels, and the `ScaleSheet` (Factor / Yield / Pan with `PanDiagram`s), plus "Copy link to this view". The view renders on the client from `?mode=…&units=…` and updates the URL with `history.replaceState`, so taps are instant and Back leaves the recipe; a shared link is server-rendered already scaled. Wording for warnings and pan options lives in `lib/recipes/scale-view.ts`.
 5. Importer: JSON-LD, then the ingredient-line parser, then the review/fix screen (low-confidence lines highlighted), then the LLM fallback.
 6. Photo upload (client resize, Storage, cover/per-step).
 7. **Design pass 2: visual polish (2–3 days).** Do this once real recipes and photos exist, because you can't judge a design against lorem ipsum. Covers the landing/demo page, empty states, mobile layout (people cook from phones), loading skeletons, dark mode. Then seed a public demo account and launch the portfolio here, since this is the first shippable version.
@@ -295,4 +295,4 @@ Decisions shown in the screens:
 - Import never blocks on flagged lines: "You can import now and fix them later."
 
 ### Not decided yet (design pass 2, §6 step 7)
-Dark mode, tablet and desktop layouts, the landing/demo page, loading skeletons, cook mode, and photo treatment once real photos exist.
+Dark mode, tablet and desktop layouts, the landing/demo page, loading skeletons, cook mode, and photo treatment once real photos exist. Also: adding your own pans (M4 offers the presets plus any user pans already in the table, but no form to add one), and whether numbers inside step text ("bake 25 min", "a 9-inch pan") should follow the scale.

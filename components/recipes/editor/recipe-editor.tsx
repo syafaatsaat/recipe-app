@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, Ellipsis, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useId } from "react";
 import { exactIngredient, saveRecipe } from "@/app/(app)/recipes/actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -98,6 +98,9 @@ export function RecipeEditor({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, startSave] = useTransition();
+  // unique per editor: /recipes/new and /edit can both stay mounted (hidden) in Next 16
+  const uid = useId();
+  const fid = (k: string) => `${uid}${k}`;
 
   const set = (patch: Partial<EditorState>) => setS((prev) => ({ ...prev, ...patch }));
   const setSection = (key: string, f: (sec: SectionState) => SectionState) =>
@@ -149,26 +152,26 @@ export function RecipeEditor({
           </span>
         </div>
 
-        <Labeled id="title" label="Title" error={errors.title}>
+        <Labeled id={fid("title")} label="Title" error={errors.title}>
           <Input
-            id="title"
+            id={fid("title")}
             value={s.title}
             onChange={(e) => set({ title: e.target.value })}
             aria-invalid={!!errors.title}
-            aria-describedby={errors.title ? "title-error" : undefined}
+            aria-describedby={errors.title ? fid("title-error") : undefined}
             className="h-12 font-heading text-xl font-semibold md:text-xl"
           />
         </Labeled>
 
-        <Labeled id="description" label="Short description (optional)" error={errors.description}>
-          <Textarea id="description" value={s.description} onChange={(e) => set({ description: e.target.value })} rows={2} />
+        <Labeled id={fid("description")} label="Short description (optional)" error={errors.description}>
+          <Textarea id={fid("description")} value={s.description} onChange={(e) => set({ description: e.target.value })} rows={2} />
         </Labeled>
 
         <div className="grid grid-cols-2 gap-3">
-          <Labeled id="yieldQty" label="Makes" error={errors.yieldQty}>
+          <Labeled id={fid("yieldQty")} label="Makes" error={errors.yieldQty}>
             <div className="flex gap-2">
               <Input
-                id="yieldQty"
+                id={fid("yieldQty")}
                 inputMode="decimal"
                 value={s.yieldQty}
                 onChange={(e) => set({ yieldQty: e.target.value })}
@@ -184,9 +187,9 @@ export function RecipeEditor({
               />
             </div>
           </Labeled>
-          <Labeled id="pan" label="Pan">
+          <Labeled id={fid("pan")} label="Pan">
             <select
-              id="pan"
+              id={fid("pan")}
               className={selectClass}
               value={s.panId ?? ""}
               onChange={(e) => set({ panId: e.target.value || null })}
@@ -199,15 +202,15 @@ export function RecipeEditor({
               ))}
             </select>
           </Labeled>
-          <Labeled id="prepMin" label="Prep (min)" error={errors.prepMin}>
-            <Input id="prepMin" inputMode="numeric" value={s.prepMin} onChange={(e) => set({ prepMin: e.target.value })} aria-invalid={!!errors.prepMin} className="font-mono" />
+          <Labeled id={fid("prepMin")} label="Prep (min)" error={errors.prepMin}>
+            <Input id={fid("prepMin")} inputMode="numeric" value={s.prepMin} onChange={(e) => set({ prepMin: e.target.value })} aria-invalid={!!errors.prepMin} className="font-mono" />
           </Labeled>
-          <Labeled id="cookMin" label="Cook (min)" error={errors.cookMin}>
-            <Input id="cookMin" inputMode="numeric" value={s.cookMin} onChange={(e) => set({ cookMin: e.target.value })} aria-invalid={!!errors.cookMin} className="font-mono" />
+          <Labeled id={fid("cookMin")} label="Cook (min)" error={errors.cookMin}>
+            <Input id={fid("cookMin")} inputMode="numeric" value={s.cookMin} onChange={(e) => set({ cookMin: e.target.value })} aria-invalid={!!errors.cookMin} className="font-mono" />
           </Labeled>
-          <Labeled id="ovenTemp" label="Oven" error={errors.ovenTemp}>
+          <Labeled id={fid("ovenTemp")} label="Oven" error={errors.ovenTemp}>
             <div className="flex gap-2">
-              <Input id="ovenTemp" inputMode="numeric" value={s.ovenTemp} onChange={(e) => set({ ovenTemp: e.target.value })} aria-invalid={!!errors.ovenTemp} className="font-mono" placeholder="350" />
+              <Input id={fid("ovenTemp")} inputMode="numeric" value={s.ovenTemp} onChange={(e) => set({ ovenTemp: e.target.value })} aria-invalid={!!errors.ovenTemp} className="font-mono" placeholder="350" />
               <select
                 aria-label="Oven units"
                 className={cn(selectClass, "w-20")}
@@ -234,7 +237,7 @@ export function RecipeEditor({
                     aria-invalid={!!errors[`section:${sec.key}:title`]}
                     className="font-heading text-lg font-medium md:text-lg"
                   />
-                  <FieldError id={`section-${sec.key}-error`} message={errors[`section:${sec.key}:title`]} />
+                  <FieldError id={fid(`section-${sec.key}-error`)} message={errors[`section:${sec.key}:title`]} />
                 </div>
               ) : (
                 <h2 className="flex-1 text-xl font-medium">Ingredients</h2>
@@ -327,8 +330,8 @@ export function RecipeEditor({
                       optional
                     </label>
                   </div>
-                  <FieldError id={`${l.key}-amount-error`} message={amountErr} />
-                  <FieldError id={`${l.key}-name-error`} message={nameErr} />
+                  <FieldError id={fid(`${l.key}-amount-error`)} message={amountErr} />
+                  <FieldError id={fid(`${l.key}-name-error`)} message={nameErr} />
                   {!l.ingredient && l.name.trim() && (
                     <p className="text-[13px] leading-snug text-destructive">
                       Not in your ingredients, so it can’t show grams. Tap “Not matched” to pick or add one.
@@ -357,8 +360,8 @@ export function RecipeEditor({
           <Plus data-icon="inline-start" /> Add a section
         </Button>
 
-        <section className="flex flex-col gap-3" aria-labelledby="method-heading">
-          <h2 id="method-heading" className="border-b border-border pb-2 text-xl font-medium">
+        <section className="flex flex-col gap-3" aria-labelledby={fid("method-heading")}>
+          <h2 id={fid("method-heading")} className="border-b border-border pb-2 text-xl font-medium">
             Method
           </h2>
           {s.steps.map((t, ti) => (
@@ -374,7 +377,7 @@ export function RecipeEditor({
                   aria-invalid={!!errors[`step:${t.key}`]}
                   rows={2}
                 />
-                <FieldError id={`step-${t.key}-error`} message={errors[`step:${t.key}`]} />
+                <FieldError id={fid(`step-${t.key}-error`)} message={errors[`step:${t.key}`]} />
               </div>
               <RowMenu
                 label={`Step ${ti + 1}`}
