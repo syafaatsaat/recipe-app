@@ -28,6 +28,16 @@ export function RecipeMenu({ id, title, versionCount }: { id: string; title: str
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  // the URL carries the scale and units (doc §3.5), so the link opens this exact view
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Couldn’t copy. Copy the address bar instead.");
+    }
+  }
+
   function onDelete() {
     startTransition(async () => {
       const r = await removeRecipe(id);
@@ -46,6 +56,9 @@ export function RecipeMenu({ id, title, versionCount }: { id: string; title: str
         <DropdownMenuContent align="end" className="w-60 p-1.5">
           <DropdownMenuItem asChild className="py-2 text-[15px]">
             <Link href={`/recipes/${id}/edit`}>Edit recipe</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem className="py-2 text-[15px]" onSelect={copyLink}>
+            Copy link to this view
           </DropdownMenuItem>
           {/* Version history changes data, so it lives here, away from Reset (doc §2, §8) */}
           <DropdownMenuItem disabled className="flex-col items-start gap-0 py-2">

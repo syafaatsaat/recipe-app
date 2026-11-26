@@ -6,6 +6,7 @@
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { minutesText } from "@/components/recipes/format";
+import { RecipeMenu } from "@/components/recipes/recipe-menu";
 import { parseScaleParams, render, sourceSystem, toScaleParams, type RenderInput, type ScaleState, type UnitSystem } from "@/lib/culinary";
 import type { PanOption } from "@/db/pans";
 import type { RenderLine } from "@/lib/recipes/render-input";
@@ -29,15 +30,16 @@ export function RecipeView({
   lines,
   input,
   pans,
-  header,
+  recipeId,
+  versionCount,
   children,
 }: {
   draft: RecipeDraft;
   lines: RenderLine[];
   input: RenderInput;
   pans: PanOption[];
-  /** title and ⋯ menu (server-rendered) */
-  header: React.ReactNode;
+  recipeId: string;
+  versionCount: number;
   /** method and footer (server-rendered) */
   children: React.ReactNode;
 }) {
@@ -74,7 +76,10 @@ export function RecipeView({
 
   return (
     <article className="flex flex-col">
-      {header}
+      <div className="flex items-start justify-between gap-2 px-6">
+        <h1 className="pt-2 text-[30px] leading-tight font-semibold">{draft.title}</h1>
+        <RecipeMenu id={recipeId} title={draft.title} versionCount={versionCount} />
+      </div>
       <div className="flex flex-col gap-1 px-6 pt-2 text-sm text-muted-foreground">
         {(yieldText || panLabel) && (
           <p>
