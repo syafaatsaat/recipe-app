@@ -11,8 +11,8 @@
 - [x] **M2: Design pass 1.** Direction E, colour/type tokens mapped to shadcn variables, four screens and their components: doc §8, canvas in `docs/design/`. Stick→oz and user ingredients decided (doc §3.6–3.7). Merged.
 - [x] **M3: auth + manual recipe CRUD** (doc §6 step 3). Email + password (doc §3.8), recipe list/view/editor, user ingredients, versions on every save, keep-alive cron. Merged.
 - [x] **M4: scaling + units on the recipe page** (doc §6 step 4). Chips, scale sheet (factor/yield/pan), US/Metric, Reset, warnings, copy link; state in the URL. Merged.
-- [ ] **M5 awaiting review** (branch `m5-import`): import from a link (JSON-LD, microdata) or pasted text, the ingredient-line parser, the review screen, SSRF guard (doc §6 step 5).
-- [ ] **M5b next:** the Claude Haiku fallback (doc §6 step 5b). Needs an API key.
+- [x] **M5: import** from a link (JSON-LD, microdata) or pasted text, the ingredient-line parser, the review screen, SSRF guard (doc §6 step 5). Merged.
+- [ ] **M5b in progress** (branch `m5b-llm`): the Claude Haiku fallback (doc §6 step 5b, §3.11). Off unless `ANTHROPIC_API_KEY` is set; tests never call the real API.
 - Later milestones follow doc §6.
 
 ## Non-negotiable rules

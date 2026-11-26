@@ -57,6 +57,11 @@
    - Email links (sign-up confirmation, password reset) land on `/auth/confirm`, which accepts both the PKCE `?code=` and the `?token_hash=&type=` styles.
 9. **"Pinch", "dash", "to taste" and "as needed" have no amount** (decided 2026-11-26). The parser stores them like a to-taste line: `quantity` null, with the word kept in `note` ("pinch flaky salt"). They never scale or convert. There's no `pinch` unit, so `UNIT_CODES` and the `unit_code` CHECK are unchanged.
 10. **The oven temperature keeps the unit it was entered in** (decided 2026-11-26, after a recipe entered at 180 °C showed as 355 °F because its ingredients were in cups). `oven_temp_c` stays the canonical value; `oven_temp_unit` ('F'/'C', null for recipes saved before) records what was typed, and the draft carries it as `ovenUnit` (defaults to null, so v1 snapshots still read). The recipe page shows it as entered, adding the conversion in brackets when the page shows the other unit system: "180 °C (355 °F)" in a US view, "180 °C" in Metric. Conversions round to 5°; the entered value is shown exactly (°F to the degree). The editor reopens in the entered unit; imports record the unit the method used.
+11. **The LLM fallback reads; it never decides** (decided 2026-11-26, M5b). Claude Haiku (`claude-haiku-5-5`) runs only when `ANTHROPIC_API_KEY` is set; without it imports behave as in M5.
+   - **When:** a link whose page has no JSON-LD or microdata (saved as `method = 'llm'`, always reviewed), and the flagged lines of any import (at most 40, one call, during the import action, never on page view).
+   - **Suggestions, not rewrites:** an AI reading of a flagged line is stored in `raw_payload.lineHints` and offered on the review as "AI suggests…" with **Use this**; the parser's reading stays the default and the line stays flagged until tapped.
+   - **Checked, not trusted:** output is Zod-validated, units must be known codes, quantities finite and ≤ `MAX_QUANTITY`; every extracted ingredient line must appear in the page text (invented or injected lines are dropped), steps need most of their words in the page. Page text is sent as untrusted data; the model has no tools.
+   - **Cost:** thinking off, effort `low`, 20 s timeout, no retries in-request; at most 20 AI calls per user per day, counted from `import_jobs`. No prompt caching (the prompt is below the minimum cacheable length).
 
 ## 4. Schema (Postgres)
 
@@ -239,7 +244,7 @@ Recheck these before relying on them. Limits change.
 | cheerio | 1.2.0 | Added in M5 (the latest release). Reads JSON-LD and microdata from imported pages. |
 | @types/node | 24.19.2 | Unverified: match it to the Node version Vercel runs when deploying (local dev is Node 26). |
 
-Not installed yet (added at their milestone): @anthropic-ai/sdk 1.14.0 (M5b). Re-check the version when installing.
+| @anthropic-ai/sdk | 1.14.0 | Added in M5b (published 2026-11-24, outside pnpm's release-age quarantine). Structured output via `messages.parse` + `zodOutputFormat`. |
 
 ## 8. Design (pass 1, decided 2026-11-25)
 
