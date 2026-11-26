@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, arrayOverlaps, asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import type { CatalogIngredient } from "@/lib/recipes/render-input";
 import { gramsPerCupToDensity } from "@/lib/recipes/schema";
 import type { Db } from "./client";
@@ -77,4 +77,35 @@ export async function matchIngredient(db: Db, userId: string, text: string): Pro
       .limit(1),
   );
   return row ? toCatalog(row) : null;
+}
+
+/**
+ * Catalog matches for many lines at once (the import review). `candidates[i]` lists
+ * names for line i, most specific first (lib/import ingredientCandidates); the first
+ * candidate that is a name or alias wins, and the user's own rows win over the catalog.
+ */
+export async function matchMany(db: Db, userId: string, candidates: readonly string[][]): Promise<(CatalogIngredient | null)[]> {
+  const all = [...new Set(candidates.flat().map((c) => c.trim().toLowerCase()).filter(Boolean))];
+  if (!all.length) return candidates.map(() => null);
+  const rows = await withUser(db, userId, (tx) =>
+    tx
+      .select()
+      .from(ingredients)
+      // aliases are stored lower-case, like matchIngredient expects
+      .where(or(inArray(sql`lower(${ingredients.name})`, all), arrayOverlaps(ingredients.aliases, all)))
+      .orderBy(sql`${ingredients.ownerId} is null`),
+  );
+  const byName = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    for (const key of [r.name.toLowerCase(), ...(r.aliases ?? []).map((a) => a.toLowerCase())]) {
+      if (!byName.has(key)) byName.set(key, r); // own rows come first
+    }
+  }
+  return candidates.map((list) => {
+    for (const c of list) {
+      const hit = byName.get(c.trim().toLowerCase());
+      if (hit) return toCatalog(hit);
+    }
+    return null;
+  });
 }

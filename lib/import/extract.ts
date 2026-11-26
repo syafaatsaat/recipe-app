@@ -1,6 +1,7 @@
 // HTML page → the recipe it describes: JSON-LD first, then microdata (doc §1
 // "Scraping"). Pure: takes the HTML string, does no fetching.
 import * as cheerio from "cheerio";
+import { z } from "zod";
 
 export interface ExtractedIngredient {
   /** "For the glaze", or null for the main list */
@@ -23,6 +24,21 @@ export interface ExtractedRecipe {
   /** the page's canonical URL, else the URL that was fetched; null for pasted text */
   url: string | null;
 }
+
+/** import_jobs.raw_payload is written by the server, but RLS lets its owner edit it: check it on read. */
+export const extractedRecipeSchema = z.object({
+  method: z.enum(["jsonld", "microdata", "paste"]),
+  title: z.string().nullable(),
+  description: z.string().nullable(),
+  ingredients: z.array(z.object({ section: z.string().nullable(), text: z.string() })).max(500),
+  steps: z.array(z.string()).max(500),
+  yieldText: z.string().nullable(),
+  prepMin: z.number().int().min(0).max(10_000).nullable(),
+  cookMin: z.number().int().min(0).max(10_000).nullable(),
+  imageUrl: z.string().nullable(),
+  siteName: z.string().nullable(),
+  url: z.string().nullable(),
+});
 
 const MAX_TEXT = 5000;
 
