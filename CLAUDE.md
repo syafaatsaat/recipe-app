@@ -12,8 +12,8 @@
 - [x] **M3: auth + manual recipe CRUD** (doc §6 step 3). Email + password (doc §3.8), recipe list/view/editor, user ingredients, versions on every save, keep-alive cron. Merged.
 - [x] **M4: scaling + units on the recipe page** (doc §6 step 4). Chips, scale sheet (factor/yield/pan), US/Metric, Reset, warnings, copy link; state in the URL. Merged.
 - [x] **M5: import** from a link (JSON-LD, microdata) or pasted text, the ingredient-line parser, the review screen, SSRF guard (doc §6 step 5). Merged.
-- [ ] **M5b awaiting review** (branch `m5b-llm`): the Claude Haiku fallback (doc §6 step 5b, §3.11). Off unless `ANTHROPIC_API_KEY` is set; tests never call the real API.
-- [ ] **Next:** photo upload (doc §6 step 6).
+- [x] **M5b: the Claude Haiku fallback** (doc §6 step 5b, §3.11). Off unless `ANTHROPIC_API_KEY` is set; tests never call the real API. Merged.
+- [ ] **M6 in progress** (branch `m6-photos`): photos (doc §6 step 6, §3.12): browser resize, private bucket, cover and per-step, imported photos linked.
 - Later milestones follow doc §6.
 
 ## Non-negotiable rules

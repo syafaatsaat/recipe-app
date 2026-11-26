@@ -27,7 +27,7 @@
 - **Supabase image transforms are paid (Pro and up)** (verified). Resize client-side before upload (2 sizes: 1600px and 400px, WebP).
 - **Some sites block or Cloudflare-challenge server fetches.** Show "couldn't import, paste the text instead" and send the pasted text through the same parser/LLM path. This is also how you get "create your own recipe from text" for free.
 - **Importing fetches URLs that users type (SSRF).** `lib/import/url-guard.ts` and `lib/fetch-page.ts`: http(s) only, ports 80/443, no credentials, no localhost/.local/.internal or single-label names; every DNS answer must be public (private, loopback, link-local, CGNAT, multicast and IPv4-mapped forms are refused); redirects followed by hand (max 5, each hop re-checked); 20 s, 3 MB, HTML only; a generic User-Agent; 30 imports per user per hour. `IMPORT_ALLOW_HOSTS` (e2e fixture server) is ignored in production. **Known gap:** DNS rebinding, since `fetch` resolves the name again after our check. Closing it means pinning the checked address with an undici dispatcher; accepted for now (M5).
-- **Imported images:** store the source URL and don't re-host by default (copyright plus storage quota). User photos go to Storage.
+- **Imported images:** store the source URL and don't re-host by default (copyright plus storage quota). They're shown linked from the source (§3.12). User photos go to Storage.
 
 ## 2. Corrections to the plan
 
@@ -62,6 +62,10 @@
    - **Suggestions, not rewrites:** an AI reading of a flagged line is stored in `raw_payload.lineHints` and offered on the review as "AI suggests…" with **Use this**; the parser's reading stays the default and the line stays flagged until tapped.
    - **Checked, not trusted:** output is Zod-validated, units must be known codes, quantities finite and ≤ `MAX_QUANTITY`; every extracted ingredient line must appear in the page text (invented or injected lines are dropped), steps need most of their words in the page. Page text is sent as untrusted data; the model has no tools.
    - **Cost:** thinking off, effort `low`, 20 s timeout, no retries in-request; at most 20 AI calls per user per day and **500 a day across all users** (a ceiling on the bill however many accounts sign up; past either, imports work as in M5), counted from `llm_calls` (one row per call with its token counts; owners can read theirs but not write them, because `import_jobs` is owner-editable and a cap counted there could be reset). No prompt caching (the prompt is below the minimum cacheable length).
+12. **Photos** (decided 2026-11-26, M6). Uploads are resized in the browser (long edge 1600 and 400, never upscaled; WebP 0.82, JPEG where the browser can't encode WebP; EXIF rotation applied, then dropped with the GPS data) and uploaded **straight from the browser** to the private `photos` bucket at `{user_id}/{photo_id}/full|thumb` (storage RLS: own folder only; no overwrite; 2 MB, webp/jpeg). The server signs 1-hour URLs when it renders a page.
+   - **In the draft, by reference:** `photos: {id, width, height, alt}[]`, `coverPhotoId`, `steps[].photoId` (defaults keep v1 snapshots readable). Saving syncs `recipe_images` in the recipe's transaction: new ids must exist in the user's own folder (checked with the Storage API first), unreferenced rows go and their objects are removed after commit, `is_cover` and `step_id` are re-linked (steps are re-inserted on every save).
+   - **Imported photos** are shown linked from the source (an `origin='import'` row with an http(s) `external_url`; `referrerPolicy="no-referrer"`, placeholder if the site blocks it), never copied (§1).
+   - **Known gaps:** abandoned uploads stay in the user's folder until a cleanup job exists; a page left open over an hour shows broken photos until reloaded; older versions may reference photos since deleted. 1 GB free storage ≈ 3,000 photos at ~300 KB a pair.
 
 ## 4. Schema (Postgres)
 
@@ -75,6 +79,7 @@
 | `…003_import_jobs_paste.sql` | `import_jobs.url` nullable for pasted text, with a CHECK that link imports keep one (M5) |
 | `…004_recipes_oven_unit.sql` | `recipes.oven_temp_unit` ('F'/'C'), only with a temperature (§3.10, M5) |
 | `…005_llm_calls.sql` | `llm_calls`: every AI call (kind, ok, tokens), select-only for its owner, written by the server (§3.11, M5b) |
+| `…006_photos_bucket.sql` | private `photos` bucket and its own-folder storage policies; `recipe_images` size and http(s)-link checks (§3.12, M6) |
 
 Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks) and [`import_jobs.test.sql`](../supabase/tests/import_jobs.test.sql) (5). Seed: [`supabase/seed.sql`](../supabase/seed.sql).
 
