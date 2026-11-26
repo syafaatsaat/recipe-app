@@ -78,3 +78,22 @@ export const PASTE_NO_HEADINGS = `Quick pancakes
 1 egg
 Whisk everything until smooth, with a few lumps left.
 Cook on a hot buttered pan until bubbles appear, then flip.`;
+
+/** As copied from a recipe card on a blog: each label on its own line, its value below. */
+export const PASTE_BLOG_CARD = `Lemon olive oil cake
+Prep Time
+15 mins
+Cook Time
+1 hr 5 mins
+Total Time
+1 hr 20 mins
+Servings
+8 slices
+
+Ingredients
+1¾ cups all-purpose flour
+3 large eggs
+
+Instructions
+Heat the oven to 350°F.
+Bake 45 minutes, until golden.`;

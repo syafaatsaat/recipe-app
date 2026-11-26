@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { recipeDraftSchema } from "@/lib/recipes/schema";
 import { ovenTempFromSteps, parseYield, toImportDraft } from "./draft";
 import { extractRecipe, isoMinutes, plainText, withSections } from "./extract";
-import { JSONLD_GRAPH, JSONLD_SIMPLE, MICRODATA, NO_RECIPE, PASTE_NO_HEADINGS, PASTE_WITH_HEADINGS } from "./fixtures";
-import { parsePaste } from "./paste";
+import { JSONLD_GRAPH, JSONLD_SIMPLE, MICRODATA, NO_RECIPE, PASTE_BLOG_CARD, PASTE_NO_HEADINGS, PASTE_WITH_HEADINGS } from "./fixtures";
+import { durationMinutes, parsePaste } from "./paste";
 
 describe("extractRecipe: JSON-LD", () => {
   const r = extractRecipe(JSONLD_GRAPH, "https://www.example.com/cake?utm=x")!;
@@ -140,6 +140,50 @@ describe("parsePaste", () => {
     expect(r.title).toBe("Quick pancakes");
     expect(r.ingredients.map((i) => i.text)).toEqual(["1 cup flour", "1 tbsp sugar", "1 cup milk", "1 egg"]);
     expect(r.steps).toHaveLength(2);
+  });
+
+  it("reads yield and times from labels with the value on the next line", () => {
+    const r = parsePaste(PASTE_BLOG_CARD);
+    expect(r).toMatchObject({ title: "Lemon olive oil cake", yieldText: "Servings 8 slices", prepMin: 15, cookMin: 65 });
+    expect(r.ingredients.map((i) => i.text)).toEqual(["1¾ cups all-purpose flour", "3 large eggs"]);
+    expect(r.steps).toEqual(["Heat the oven to 350°F.", "Bake 45 minutes, until golden."]);
+    expect(toImportDraft(r).draft).toMatchObject({ yieldQty: 8, yieldUnit: "slices", prepMin: 15, cookMin: 65 });
+  });
+
+  it("reads labels with the value on the same line, and leaves steps that only look like them", () => {
+    const r = parsePaste(
+      [
+        "Pancakes",
+        "Prep time: 10 minutes",
+        "Cook 25 min",
+        "Rest: 1 hour",
+        "Serves: 4",
+        "1 cup flour",
+        "1 egg",
+        "Cook the pancakes until golden.",
+        "Rest the batter if you have time.",
+        "Makes a great breakfast.",
+      ].join("\n"),
+    );
+    expect(r).toMatchObject({ title: "Pancakes", yieldText: "Serves 4", prepMin: 10, cookMin: 25 });
+    expect(r.ingredients.map((i) => i.text)).toEqual(["1 cup flour", "1 egg"]);
+    expect(r.steps).toEqual(["Cook the pancakes until golden.", "Rest the batter if you have time.", "Makes a great breakfast."]);
+  });
+
+  it("keeps a line after a label when it isn't the label's value", () => {
+    const r = parsePaste("Bread\nMakes\n1 loaf\nCook Time\nabout an hour\nPreparation:\nKnead well.");
+    expect(r).toMatchObject({ yieldText: "Makes 1 loaf", cookMin: null, steps: ["about an hour", "Knead well."] });
+  });
+
+  it("reads durations", () => {
+    expect(durationMinutes("15 mins")).toBe(15);
+    expect(durationMinutes("1 hr 5 mins")).toBe(65);
+    expect(durationMinutes("1 hour and 30 minutes")).toBe(90);
+    expect(durationMinutes("1.5 hours")).toBe(90);
+    expect(durationMinutes("2h")).toBe(120);
+    expect(durationMinutes("0 min")).toBeNull();
+    expect(durationMinutes("about an hour")).toBeNull();
+    expect(durationMinutes("")).toBeNull();
   });
 
   it("copes with empty text", () => {

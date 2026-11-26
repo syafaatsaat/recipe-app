@@ -112,7 +112,12 @@ test("paste from the New menu keeps sections", async ({ page }) => {
   await page.getByLabel("Recipe text").filter({ visible: true }).fill(
     [
       "Lemon drizzle loaf",
-      "Serves 8",
+      "Prep Time",
+      "15 mins",
+      "Cook Time",
+      "45 mins",
+      "Servings",
+      "8",
       "",
       "Ingredients",
       "225g self-raising flour",
@@ -131,12 +136,15 @@ test("paste from the New menu keeps sections", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Lemon drizzle loaf" })).toBeVisible(AFTER_SUBMIT);
   await expect(page.getByText("From pasted text · 8 servings")).toBeVisible();
   await expect(page.getByRole("heading", { name: "For the drizzle" })).toBeVisible();
+  // the labels and their values are read as yield and times, not as ingredients or steps
+  await expect(page.getByRole("listitem").filter({ hasText: /mins|Time|Servings/ })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Method · 3 steps" })).toBeVisible();
   await page.getByRole("button", { name: "Import", exact: true }).click();
 
   await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, AFTER_SUBMIT);
   await expect(page.getByRole("heading", { name: "For the drizzle" })).toBeVisible();
   await expect(page.getByText(/From .* ↗/)).toHaveCount(0);
-  await expect(page.getByText(/Oven 180 °C/)).toBeVisible();
+  await expect(page.getByText("Prep 15 min · Cook 45 min · Oven 180 °C")).toBeVisible();
 });
 
 test("private addresses are refused with a friendly error", async ({ page }) => {
