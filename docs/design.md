@@ -282,6 +282,8 @@ All three fonts are on Google Fonts under the SIL Open Font License, loaded with
 | Amounts, ×factor, step numbers, "orig.", chip quantities | DM Mono | 500 / 400 | 14.5 amounts, 22 factor, 12 "orig." |
 | Eyebrow labels ("SCALE") | DM Sans | 400, uppercase, +0.12em | 12 |
 
+**Fractions** (changed 2026-11-26: DM Mono's own ¼ ½ ¾ are tiny stacked glyphs, and ⅓ ⅛ fall back to another font). Amounts keep the Unicode glyph in the text, but `components/fractions.tsx` draws each one as a raised numerator, "/" and denominator in the surrounding digits, with a little space after a whole number ("1 ³/4"). Text fields (the editor's Amount) show the typed form instead: "1 1/2".
+
 ### Shape and spacing
 - Phone first. Designed at 390 × 844, with 24 px side padding.
 - Pills (radius = height ÷ 2) for buttons, chips and segmented controls. 10–12 px radius for inputs and option cards. 22 px top corners on bottom sheets. Photo placeholders use slightly uneven radii (6/22/8/18) as the one wabi-sabi touch.

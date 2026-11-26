@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { Fractions } from "@/components/fractions";
 import { CHIP_FACTORS, CHIP_LABELS, type ChipFactor } from "@/lib/recipes/scale-view";
 
 const pill =
@@ -28,13 +29,13 @@ export function ScaleBar({
       <div className="flex items-baseline justify-between">
         <span className="text-xs tracking-[0.12em] text-muted-foreground uppercase">Scale</span>
         <output aria-live="polite" aria-label="Scale factor" className="font-mono text-[22px] font-medium text-primary">
-          {factor}
+          <Fractions text={factor} />
         </output>
       </div>
       <div role="group" aria-label="Scale" className="flex gap-2">
         {CHIP_FACTORS.map((f) => (
           <button key={f} type="button" aria-pressed={active === f} onClick={() => onChip(f)} className={cn(pill, pillState(active === f))}>
-            {CHIP_LABELS[f]}
+            <Fractions text={CHIP_LABELS[f]} />
           </button>
         ))}
         <button

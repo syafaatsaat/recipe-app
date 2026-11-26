@@ -44,7 +44,7 @@ describe("toEditorState → toDraft", () => {
   it("shows stored values as typed text", () => {
     const s = state();
     expect(s).toMatchObject({ yieldQty: "12", prepMin: "15", ovenTemp: "350", ovenUnit: "F" });
-    expect(s.sections[0].lines.map((l) => l.amount)).toEqual(["1½", "1–2", ""]);
+    expect(s.sections[0].lines.map((l) => l.amount)).toEqual(["1 1/2", "1–2", ""]);
     expect(s.sections[0].lines[0].ingredient).toEqual(FLOUR);
   });
 

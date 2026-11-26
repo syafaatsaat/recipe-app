@@ -9,6 +9,7 @@ import { useId, useState, useTransition } from "react";
 import { exactIngredient } from "@/app/(app)/recipes/actions";
 import { cn } from "cn";
 import { confirmImport } from "@/app/(app)/recipes/import/actions";
+import { Fractions } from "@/components/fractions";
 import { yieldText } from "@/components/recipes/format";
 import { Button } from "@/components/ui/button";
 import { formatNumberFor, formatRange, unitLabel } from "@/lib/culinary/format";
@@ -173,7 +174,7 @@ function ReviewLine({
       <div className="flex flex-wrap gap-1.5" aria-label="Read as">
         {chips.map((c, i) => (
           <span key={i} className={CHIPS[c.kind]}>
-            {c.text}
+            <Fractions text={c.text} />
           </span>
         ))}
       </div>

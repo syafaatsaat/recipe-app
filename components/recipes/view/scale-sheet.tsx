@@ -3,6 +3,7 @@
 // "More" → the Scale recipe sheet (doc §8): Factor / Yield / Pan tabs. Yield and pan
 // are mutually exclusive; whichever is applied last wins (doc §5).
 import { cn } from "cn";
+import { Fractions } from "@/components/fractions";
 import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { useId, useState } from "react";
@@ -154,7 +155,7 @@ function SheetBody({ input, draft, pans, scale, onApply }: Omit<Props, "open" | 
               {draft.yieldUnit && <span className="font-sans text-[15px] font-normal">{draft.yieldUnit}</span>}
               {yieldResolved?.ok && (
                 <span className="ml-auto text-sm text-primary" aria-label={`Scale factor ${factorText(yieldResolved.factor)}`}>
-                  {factorText(yieldResolved.factor)}
+                  <Fractions text={factorText(yieldResolved.factor)} />
                 </span>
               )}
             </div>
@@ -210,7 +211,7 @@ function PanChoice({ option: o, checked, onSelect }: { option: PanOptionView; ch
     >
       <PanDiagram diagram={o.diagram} />
       <span className="text-sm">{o.label}</span>
-      <span className={cn("font-mono text-xs", o.disabledReason ? "font-sans text-destructive" : "text-muted-foreground")}>{meta}</span>
+      <span className={cn("font-mono text-xs", o.disabledReason ? "font-sans text-destructive" : "text-muted-foreground")}><Fractions text={meta} /></span>
     </button>
   );
 }

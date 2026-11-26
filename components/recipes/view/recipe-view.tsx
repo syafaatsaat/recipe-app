@@ -5,6 +5,7 @@
 // syncs with useSearchParams: no server round-trip, and Back still leaves the recipe.
 import { useSearchParams } from "next/navigation";
 import { useId, useState } from "react";
+import { Fractions } from "@/components/fractions";
 import { minutesText } from "@/components/recipes/format";
 import { RecipeMenu } from "@/components/recipes/recipe-menu";
 import { parseScaleParams, render, sourceSystem, toScaleParams, type RenderInput, type ScaleState, type UnitSystem } from "@/lib/culinary";
@@ -97,7 +98,7 @@ export function RecipeView({
           <p>
             {yieldText && (
               <>
-                Makes <span className="font-mono text-foreground">{yieldText}</span>
+                Makes <span className="font-mono text-foreground"><Fractions text={yieldText} /></span>
               </>
             )}
             {yieldText && panLabel && " · "}

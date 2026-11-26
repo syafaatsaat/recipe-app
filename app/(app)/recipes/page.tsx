@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Fractions } from "@/components/fractions";
 import { Suspense } from "react";
 import { NewRecipeMenu } from "@/components/recipes/new-recipe-menu";
 import { yieldText } from "@/components/recipes/format";
@@ -35,7 +36,7 @@ async function RecipeList({ searchParams }: { searchParams: PageProps<"/recipes"
             <div className="flex min-w-0 flex-col gap-1">
               <span className="font-heading text-lg leading-tight font-medium group-hover:text-primary">{r.title}</span>
               <span className="text-[13px] text-muted-foreground">
-                {[yieldText(r.yieldQty, r.yieldUnit), r.panLabel].filter(Boolean).join(" · ") || " "}
+                <Fractions text={[yieldText(r.yieldQty, r.yieldUnit), r.panLabel].filter(Boolean).join(" · ") || " "} />
               </span>
             </div>
           </Link>

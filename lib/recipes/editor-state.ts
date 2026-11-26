@@ -1,6 +1,6 @@
 // The ingredient editor's form state, and its conversion to and from RecipeDraft.
 // Pure (no React), so the rules for turning typed text into a draft are unit-tested.
-import { formatQuantity, parseQuantity } from "@/lib/culinary/quantity";
+import { formatQuantity, parseQuantity, plainFractions } from "@/lib/culinary/quantity";
 import type { ScalingRule } from "@/lib/culinary/schemas";
 import type { UnitCode } from "@/lib/culinary/units";
 import type { CatalogIngredient } from "./render-input";
@@ -74,7 +74,8 @@ export function toEditorState(draft: RecipeDraft, catalog: Record<string, Catalo
       title: s.title ?? "",
       lines: s.ingredients.map((l) => ({
         key: newKey("l"),
-        amount: formatQuantity(l.quantity, l.quantityMax),
+        // typed form ("1 1/2"): the glyphs are hard to read in a text field (parseQuantity reads both)
+        amount: plainFractions(formatQuantity(l.quantity, l.quantityMax)),
         unitCode: l.unitCode,
         name: l.name,
         ingredient: l.ingredientId ? (catalog[l.ingredientId] ?? null) : null,
