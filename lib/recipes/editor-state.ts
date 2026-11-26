@@ -17,6 +17,9 @@ export interface LineState {
   // not editable in M3, kept so saving doesn't drop them
   note: string | null;
   scalingRule: ScalingRule | null;
+  /** import provenance (doc §3.4), carried through edits */
+  rawText: string | null;
+  parseConfidence: number | null;
 }
 export interface SectionState {
   key: string;
@@ -50,7 +53,7 @@ export const newKey = (prefix: string) => `${prefix}${++seq}`;
 export function newLine(): LineState {
   return {
     key: newKey("l"), amount: "", unitCode: null, name: "", ingredient: null,
-    preparation: "", isOptional: false, note: null, scalingRule: null,
+    preparation: "", isOptional: false, note: null, scalingRule: null, rawText: null, parseConfidence: null,
   };
 }
 
@@ -78,6 +81,8 @@ export function toEditorState(draft: RecipeDraft, catalog: Record<string, Catalo
         isOptional: l.isOptional,
         note: l.note,
         scalingRule: l.scalingRule,
+        rawText: l.rawText,
+        parseConfidence: l.parseConfidence,
       })),
     })),
     steps: draft.steps.map((s) => ({ key: newKey("t"), body: s.body })),
@@ -133,6 +138,8 @@ export function toDraft(s: EditorState): { ok: true; draft: RecipeDraft } | { ok
         note: l.note,
         isOptional: l.isOptional,
         scalingRule: l.scalingRule,
+        rawText: l.rawText,
+        parseConfidence: l.parseConfidence,
       };
     }),
   }));

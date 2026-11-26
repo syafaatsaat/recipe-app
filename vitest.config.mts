@@ -14,7 +14,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["lib/culinary/**/*.ts", "lib/recipes/**/*.ts", "lib/import/**/*.ts"],
-      exclude: ["**/*.test.ts", "lib/culinary/fixtures.ts", "lib/culinary/index.ts"],
+      exclude: ["**/*.test.ts", "lib/culinary/fixtures.ts", "lib/culinary/index.ts", "lib/import/fixtures.ts"],
       thresholds: { lines: 95, branches: 95, functions: 95, statements: 95 },
     },
   },

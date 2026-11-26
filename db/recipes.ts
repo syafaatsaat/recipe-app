@@ -85,6 +85,8 @@ export async function getRecipe(db: Db, userId: string, id: string): Promise<Sto
       note: l.note,
       isOptional: l.isOptional,
       scalingRule: l.scalingRule,
+      rawText: l.rawText,
+      parseConfidence: l.parseConfidence,
     });
     const draftSections: RecipeDraft["sections"] =
       sections.length === 0
@@ -182,6 +184,8 @@ async function writeChildren(tx: Tx, recipeId: string, draft: RecipeDraft) {
       note: l.note,
       isOptional: l.isOptional,
       scalingRule: l.scalingRule,
+      rawText: l.rawText,
+      parseConfidence: l.parseConfidence,
     })),
   );
   if (lines.length) await tx.insert(recipeIngredients).values(lines);

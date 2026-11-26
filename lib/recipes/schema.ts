@@ -33,6 +33,10 @@ export const ingredientLineSchema = z
     isOptional: z.boolean(),
     /** null = use the ingredient's default rule */
     scalingRule: scalingRuleSchema.nullable(),
+    /** the line as imported (doc §3.4); null for typed lines. Defaults keep v1 snapshots readable. */
+    rawText: optionalText(500).default(null),
+    /** the parser's confidence, 0–1; null for typed lines. 1 once someone has checked it. */
+    parseConfidence: z.number().min(0).max(1).nullable().default(null),
   })
   .refine((l) => l.quantityMax === null || (l.quantity !== null && l.quantityMax > l.quantity), {
     message: "A range needs a smaller first number.",
@@ -77,7 +81,7 @@ export type RecipeSnapshot = z.infer<typeof recipeSnapshotSchema>;
 export function emptyLine(): IngredientLine {
   return {
     quantity: null, quantityMax: null, unitCode: null, ingredientId: null, name: "",
-    preparation: null, note: null, isOptional: false, scalingRule: null,
+    preparation: null, note: null, isOptional: false, scalingRule: null, rawText: null, parseConfidence: null,
   };
 }
 
