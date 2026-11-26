@@ -182,7 +182,7 @@ These settle what the pipeline above left open. `lib/culinary/` tests encode eve
 10. **`to_taste` / `fixed`** skip scaling but are still unit-converted.
 11. **Ranges** scale both ends and share one unit, picked from the larger end.
 12. **Leavening warning** fires only when the factor is > 2 or < 0.5 (exactly 2× and 0.5× don't warn).
-13. **Factor** must be finite and within 0.01–100.
+13. **Factor** must be finite and within 0.01–100. This is `lib/culinary`'s hard limit, so any URL in that range renders. The scale sheet's "Multiply by" input accepts only **0.1–20** (decided 2026-11-26, matching the canvas), the realistic range for home cooking.
 14. **Pans:** muffin ↔ non-muffin is unsupported (no reliable cup volume), and so is `other` without `volume_ml`. The UI disables those options. The bake hint is structured (`{ direction: 'shallower' | 'deeper' }`), and the UI writes the wording, with no invented percentages.
 
 ## 6. Build order
