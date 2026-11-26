@@ -53,3 +53,13 @@ export async function seedBrownies(email: string): Promise<string> {
     await client.end();
   }
 }
+
+/** Deletes an account behind its open session, like `pnpm db:reset` or a deleted user. */
+export async function deleteAccount(email: string): Promise<void> {
+  const { db, client } = createDb(URL);
+  try {
+    await db.execute(sql`delete from auth.users where email = ${email}`);
+  } finally {
+    await client.end();
+  }
+}

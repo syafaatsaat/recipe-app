@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signUp, uniqueEmail } from "./helpers";
+import { deleteAccount } from "./seed";
 
 // Import from a link or pasted text (doc §6 step 5), against the hand-written pages
 // that e2e/fixture-server.mjs serves (allowed via IMPORT_ALLOW_HOSTS, never in production).
@@ -236,4 +237,18 @@ test("private addresses are refused with a friendly error", async ({ page }) => 
     await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toHaveText(/That address can’t be imported\.|That doesn’t look like a web address/, AFTER_SUBMIT);
     await expect(page).toHaveURL(/\/recipes\/import$/);
   }
+});
+
+test("an import by an account that no longer exists signs out instead of crashing", async ({ page }) => {
+  const email = uniqueEmail("import-gone");
+  await signUp(page, email);
+  await page.goto("/recipes/import?paste=1");
+  await deleteAccount(email); // the session cookie is still validly signed
+  await page.getByLabel("Recipe text").filter({ visible: true }).fill("Toast\n2 slices bread\nToast the bread.");
+  await page.getByRole("button", { name: "Read pasted text" }).click();
+  await expect(page).toHaveURL(/\/login\?error=gone$/, AFTER_SUBMIT);
+  await expect(page.getByText("That account no longer exists. Sign in with another, or create one.")).toBeVisible();
+  // and the session is really over
+  await page.goto("/recipes");
+  await expect(page).toHaveURL(/\/login/);
 });

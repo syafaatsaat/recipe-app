@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { attachRecipe, createImportJob, getImportJob, importsInLastHour } from "@/db/imports";
 import { createRecipe } from "@/db/recipes";
-import { requireUserId } from "@/lib/auth";
+import { endMissingAccount, isMissingAccount, requireUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { fetchPage } from "@/lib/fetch-page";
 import { toImportDraft } from "@/lib/import/draft";
@@ -26,6 +26,13 @@ async function rateLimited(userId: string): Promise<boolean> {
 }
 const LIMIT_ERROR = "That’s a lot of imports in the last hour. Try again in a little while.";
 
+/** A failed write: an account that no longer exists signs out; anything else is logged and retried by hand. */
+async function failed(where: string, e: unknown, message: string): Promise<{ error: string }> {
+  if (isMissingAccount(e)) await endMissingAccount();
+  console.error(where, e);
+  return { error: message };
+}
+
 /** Link → fetch → extract → a job to review. A page we can't read still makes a job: its review offers paste. */
 export async function importFromUrl(_prev: ImportState, form: FormData): Promise<ImportState> {
   const userId = await requireUserId();
@@ -38,16 +45,20 @@ export async function importFromUrl(_prev: ImportState, form: FormData): Promise
   const url = checked.url.toString();
   const page = await fetchPage(url);
   let jobId: string;
-  if (!page.ok) {
-    jobId = await createImportJob(db, userId, { url, method: null, status: "failed", error: page.error });
-  } else {
-    const extracted = extractRecipe(page.html, page.url);
-    if (!extracted) {
-      jobId = await createImportJob(db, userId, { url, method: null, status: "failed", error: "No recipe data on that page." });
+  try {
+    if (!page.ok) {
+      jobId = await createImportJob(db, userId, { url, method: null, status: "failed", error: page.error });
     } else {
-      const flagged = toImportDraft(extracted).parsed.flat().some((p) => p.confidence < FLAG_BELOW);
-      jobId = await createImportJob(db, userId, { url, method: extracted.method, status: flagged ? "partial" : "ok", rawPayload: extracted });
+      const extracted = extractRecipe(page.html, page.url);
+      if (!extracted) {
+        jobId = await createImportJob(db, userId, { url, method: null, status: "failed", error: "No recipe data on that page." });
+      } else {
+        const flagged = toImportDraft(extracted).parsed.flat().some((p) => p.confidence < FLAG_BELOW);
+        jobId = await createImportJob(db, userId, { url, method: extracted.method, status: flagged ? "partial" : "ok", rawPayload: extracted });
+      }
     }
+  } catch (e) {
+    return { ...(await failed("importFromUrl failed", e, "Couldn’t start the import. Try again.")), value };
   }
   redirect(`/recipes/import/${jobId}`);
 }
@@ -69,12 +80,17 @@ export async function importFromText(_prev: ImportState, form: FormData): Promis
     return { error: "Couldn’t find a recipe in that text. Include the ingredients, one per line.", value };
   }
   const flagged = toImportDraft(extracted).parsed.flat().some((p) => p.confidence < FLAG_BELOW);
-  const jobId = await createImportJob(db, userId, {
-    url: source?.url ?? null,
-    method: "paste",
-    status: flagged ? "partial" : "ok",
-    rawPayload: { ...extracted, url: source?.url ?? null, siteName: source?.url ? new URL(source.url).hostname.replace(/^www\./, "") : null },
-  });
+  let jobId: string;
+  try {
+    jobId = await createImportJob(db, userId, {
+      url: source?.url ?? null,
+      method: "paste",
+      status: flagged ? "partial" : "ok",
+      rawPayload: { ...extracted, url: source?.url ?? null, siteName: source?.url ? new URL(source.url).hostname.replace(/^www\./, "") : null },
+    });
+  } catch (e) {
+    return { ...(await failed("importFromText failed", e, "Couldn’t read that text. Try again.")), value };
+  }
   redirect(`/recipes/import/${jobId}`);
 }
 
@@ -101,8 +117,7 @@ export async function confirmImport(jobId: string, input: unknown): Promise<{ er
     });
     await attachRecipe(db, userId, jobId, recipeId);
   } catch (e) {
-    console.error("confirmImport failed", e);
-    return { error: "Couldn’t save the recipe. Try again." };
+    return failed("confirmImport failed", e, "Couldn’t save the recipe. Try again.");
   }
   revalidatePath("/recipes");
   redirect(`/recipes/${recipeId}`);

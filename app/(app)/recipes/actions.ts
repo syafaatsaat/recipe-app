@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { addMyIngredient, matchIngredient, searchIngredients } from "@/db/ingredients";
 import { createRecipe, deleteRecipe, updateRecipe } from "@/db/recipes";
-import { requireUserId } from "@/lib/auth";
+import { endMissingAccount, isMissingAccount, requireUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import type { CatalogIngredient } from "@/lib/recipes/render-input";
 import { recipeDraftSchema } from "@/lib/recipes/schema";
@@ -34,6 +34,7 @@ export async function saveRecipe(id: string | null, input: unknown): Promise<Sav
       target = id;
     }
   } catch (e) {
+    if (isMissingAccount(e)) await endMissingAccount();
     console.error("saveRecipe failed", e);
     return { error: "Couldn’t save. Check the ingredients you linked and try again." };
   }
@@ -73,5 +74,11 @@ export async function addIngredient(
   const userId = await requireUserId();
   const parsed = addSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  return { ok: true, ingredient: await addMyIngredient(getDb(), userId, parsed.data) };
+  try {
+    return { ok: true, ingredient: await addMyIngredient(getDb(), userId, parsed.data) };
+  } catch (e) {
+    if (isMissingAccount(e)) await endMissingAccount();
+    console.error("addIngredient failed", e);
+    return { ok: false, error: "Couldn’t add it. Try again." };
+  }
 }

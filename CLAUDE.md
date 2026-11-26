@@ -29,7 +29,7 @@
 - `AGENTS.md` comes from Next.js: Next 16 may differ from training data, so check `node_modules/next/dist/docs/` before using Next APIs.
 
 ## Run locally
-1. `npx supabase start`, then `pnpm db:reset` (migrations + seed)
+1. `npx supabase start`, then `pnpm db:reset` (migrations + seed). A reset deletes every account: sign up again afterwards (an old session is signed out on its first save).
 2. `cp .env.example .env.local` (local default keys, not secrets)
 3. `pnpm dev`, open http://localhost:3000, create an account. Emails (password reset) land in Mailpit at http://127.0.0.1:54324
 
