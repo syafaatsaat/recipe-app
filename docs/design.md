@@ -189,7 +189,7 @@ These settle what the pipeline above left open. `lib/culinary/` tests encode eve
 1. Domain module plus tests (units, density seed, pan math, rounding). This has no UI dependency, so it can start before any design work.
 2. ✅ **Done 2026-11-25, see §8.** **Design pass 1: UX wireframes (½–1 day, low-fi).** Cover the 4 screens that drive structure: recipe view with scale/unit controls and the "orig." display, structured ingredient editor, import review/fix, and recipe list. Do it here because these screens decide component boundaries and the editor's data flow. Pick a shadcn theme, type scale and colour tokens. Skip pixel polish.
 3. ✅ **Done 2026-11-25 (M3).** Schema, auth, manual recipe CRUD with structured ingredient editor. Add the daily Supabase keep-alive cron (Vercel Cron hitting a route that runs `select 1`) as soon as the project is deployed. (Built: `/api/keep-alive` and `vercel.json`, daily at 09:00 UTC; it needs `CRON_SECRET` set in Vercel.)
-4. Render with scaling, unit toggle and URL state.
+4. ✅ **Done 2026-11-26 (M4).** Render with scaling, unit toggle and URL state. Built: `ScaleBar`, `UnitToggle` with Reset, `WarningList`, "orig." labels, and the `ScaleSheet` (Factor / Yield / Pan with `PanDiagram`s), plus "Copy link to this view". The view renders on the client from `?mode=…&units=…` and updates the URL with `history.replaceState`, so taps are instant and Back leaves the recipe; a shared link is server-rendered already scaled. Wording for warnings and pan options lives in `lib/recipes/scale-view.ts`.
 5. Importer: JSON-LD, then the ingredient-line parser, then the review/fix screen (low-confidence lines highlighted), then the LLM fallback.
 6. Photo upload (client resize, Storage, cover/per-step).
 7. **Design pass 2: visual polish (2–3 days).** Do this once real recipes and photos exist, because you can't judge a design against lorem ipsum. Covers the landing/demo page, empty states, mobile layout (people cook from phones), loading skeletons, dark mode. Then seed a public demo account and launch the portfolio here, since this is the first shippable version.
@@ -295,4 +295,4 @@ Decisions shown in the screens:
 - Import never blocks on flagged lines: "You can import now and fix them later."
 
 ### Not decided yet (design pass 2, §6 step 7)
-Dark mode, tablet and desktop layouts, the landing/demo page, loading skeletons, cook mode, and photo treatment once real photos exist.
+Dark mode, tablet and desktop layouts, the landing/demo page, loading skeletons, cook mode, and photo treatment once real photos exist. Also: adding your own pans (M4 offers the presets plus any user pans already in the table, but no form to add one), and whether numbers inside step text ("bake 25 min", "a 9-inch pan") should follow the scale.
