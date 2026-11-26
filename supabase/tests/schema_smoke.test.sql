@@ -140,8 +140,8 @@ select throws_ok($$ insert into recipe_ingredients (recipe_id, position, name, i
   values ('a0000000-0000-0000-0000-000000000001', 9, 'x', 'b1000000-0000-0000-0000-000000000001') $$,
   '42501', null, 'Alice cannot link Bob''s private ingredient');
 -- 38 versions are immutable
-select is(pg_temp.affected($q$update recipe_versions set change_note = 'x'$q$), 0,
-  'versions cannot be updated through the API');
+select throws_ok($$ update recipe_versions set change_note = 'x' $$, '42501', null,
+  'versions cannot be updated through the API (no update grant, migration 007)');
 -- 39 own writes work
 select lives_ok($$ insert into recipes (owner_id, title, source_type) values ('aaaaaaaa-0000-0000-0000-000000000000', 'Mine', 'paste') $$,
   'Alice can create her own recipe');
@@ -149,7 +149,7 @@ select lives_ok($$ insert into recipes (owner_id, title, source_type) values ('a
 -- ── RLS as anon ─────────────────────────────────────────────────────────
 select pg_temp.as_anon();
 -- 40–41
-select is((select count(*)::int from recipes), 0, 'anon sees no recipes');
+select throws_ok($$ select count(*) from recipes $$, '42501', null, 'anon can''t read recipes at all (no grant, migration 007)');
 select ok((select count(*) from pans) >= 8, 'anon can read global pan presets');
 
 -- ── account deletion cascades ───────────────────────────────────────────

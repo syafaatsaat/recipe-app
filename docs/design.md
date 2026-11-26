@@ -80,8 +80,9 @@
 | `…004_recipes_oven_unit.sql` | `recipes.oven_temp_unit` ('F'/'C'), only with a temperature (§3.10, M5) |
 | `…005_llm_calls.sql` | `llm_calls`: every AI call (kind, ok, tokens), select-only for its owner, written by the server (§3.11, M5b) |
 | `…006_photos_bucket.sql` | private `photos` bucket and its own-folder storage policies; `recipe_images` size and http(s)-link checks (§3.12, M6) |
+| `…007_table_grants.sql` | explicit table privileges for `anon`/`authenticated` (hosted projects no longer grant them by default); no TRUNCATE; new tables start with none, locally too |
 
-Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks) and [`import_jobs.test.sql`](../supabase/tests/import_jobs.test.sql) (5). Seed: [`supabase/seed.sql`](../supabase/seed.sql).
+Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks) [`import_jobs.test.sql`](../supabase/tests/import_jobs.test.sql) (5), and [`table_grants.test.sql`](../supabase/tests/table_grants.test.sql) (16), among others in that folder. Seed: [`supabase/seed.sql`](../supabase/seed.sql).
 
 **What changed from the v1 draft SQL, and why.** The draft applied cleanly, but probing it found the following. The verbatim draft is in git history (commit `50eeb88`).
 - **No RLS at all.** Supabase exposes `public` tables through the Data API with the public anon key, so with RLS off, anyone could read and write every table. Every table now has RLS. Child tables have no `owner_id`, so their policies check ownership through `recipes`. Global `ingredients`/`pans` are readable by `anon` and `authenticated` and writable by no one through the API. `recipe_versions` is select/insert only, so history can't be edited. Insert/update policies also check that a linked `pan_id`/`ingredient_id` is one the user can see, because FK checks ignore RLS.
