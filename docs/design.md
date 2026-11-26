@@ -57,6 +57,11 @@
    - Email links (sign-up confirmation, password reset) land on `/auth/confirm`, which accepts both the PKCE `?code=` and the `?token_hash=&type=` styles.
 9. **"Pinch", "dash", "to taste" and "as needed" have no amount** (decided 2026-11-26). The parser stores them like a to-taste line: `quantity` null, with the word kept in `note` ("pinch flaky salt"). They never scale or convert. There's no `pinch` unit, so `UNIT_CODES` and the `unit_code` CHECK are unchanged.
 10. **The oven temperature keeps the unit it was entered in** (decided 2026-11-26, after a recipe entered at 180 °C showed as 355 °F because its ingredients were in cups). `oven_temp_c` stays the canonical value; `oven_temp_unit` ('F'/'C', null for recipes saved before) records what was typed, and the draft carries it as `ovenUnit` (defaults to null, so v1 snapshots still read). The recipe page shows it as entered, adding the conversion in brackets when the page shows the other unit system: "180 °C (355 °F)" in a US view, "180 °C" in Metric. Conversions round to 5°; the entered value is shown exactly (°F to the degree). The editor reopens in the entered unit; imports record the unit the method used.
+11. **The LLM fallback reads; it never decides** (decided 2026-11-26, M5b). Claude Haiku (`claude-haiku-5-5`) runs only when `ANTHROPIC_API_KEY` is set; without it imports behave as in M5.
+   - **When:** a link whose page has no JSON-LD or microdata (saved as `method = 'llm'`, always reviewed), and the flagged lines of any import (at most 40, one call, during the import action, never on page view).
+   - **Suggestions, not rewrites:** an AI reading of a flagged line is stored in `raw_payload.lineHints` and offered on the review as "AI suggests…" with **Use this**; the parser's reading stays the default and the line stays flagged until tapped.
+   - **Checked, not trusted:** output is Zod-validated, units must be known codes, quantities finite and ≤ `MAX_QUANTITY`; every extracted ingredient line must appear in the page text (invented or injected lines are dropped), steps need most of their words in the page. Page text is sent as untrusted data; the model has no tools.
+   - **Cost:** thinking off, effort `low`, 20 s timeout, no retries in-request; at most 20 AI calls per user per day and **500 a day across all users** (a ceiling on the bill however many accounts sign up; past either, imports work as in M5), counted from `llm_calls` (one row per call with its token counts; owners can read theirs but not write them, because `import_jobs` is owner-editable and a cap counted there could be reset). No prompt caching (the prompt is below the minimum cacheable length).
 
 ## 4. Schema (Postgres)
 
@@ -69,6 +74,7 @@
 | `…002_triggers.sql` | profile row on signup, `recipes.updated_at` |
 | `…003_import_jobs_paste.sql` | `import_jobs.url` nullable for pasted text, with a CHECK that link imports keep one (M5) |
 | `…004_recipes_oven_unit.sql` | `recipes.oven_temp_unit` ('F'/'C'), only with a temperature (§3.10, M5) |
+| `…005_llm_calls.sql` | `llm_calls`: every AI call (kind, ok, tokens), select-only for its owner, written by the server (§3.11, M5b) |
 
 Tests: [`supabase/tests/schema_smoke.test.sql`](../supabase/tests/schema_smoke.test.sql) (42 pgTAP checks) and [`import_jobs.test.sql`](../supabase/tests/import_jobs.test.sql) (5). Seed: [`supabase/seed.sql`](../supabase/seed.sql).
 
@@ -197,7 +203,7 @@ These settle what the pipeline above left open. `lib/culinary/` tests encode eve
 3. ✅ **Done 2026-11-25 (M3).** Schema, auth, manual recipe CRUD with structured ingredient editor. Add the daily Supabase keep-alive cron (Vercel Cron hitting a route that runs `select 1`) as soon as the project is deployed. (Built: `/api/keep-alive` and `vercel.json`, daily at 09:00 UTC; it needs `CRON_SECRET` set in Vercel.)
 4. ✅ **Done 2026-11-26 (M4).** Render with scaling, unit toggle and URL state. Built: `ScaleBar`, `UnitToggle` with Reset, `WarningList`, "orig." labels, and the `ScaleSheet` (Factor / Yield / Pan with `PanDiagram`s), plus "Copy link to this view". The view renders on the client from `?mode=…&units=…` and updates the URL with `history.replaceState`, so taps are instant and Back leaves the recipe; a shared link is server-rendered already scaled. Wording for warnings and pan options lives in `lib/recipes/scale-view.ts`.
 5. ✅ **Done 2026-11-26 (M5).** Importer: JSON-LD and microdata, then the ingredient-line parser, then the review/fix screen (low-confidence lines highlighted), with pasted text as the fallback when a page has no recipe data or blocks the fetch. Built: `lib/import/` (pure: `parse-line`, `extract`, `paste`, `draft`, `url-guard`), `lib/fetch-page.ts`, `db/imports.ts`, `/recipes/import` (link or paste) and `/recipes/import/[jobId]` (review, or the paste fallback for a failed link). `import_jobs.raw_payload` keeps the extracted recipe and the review re-parses it, so parser fixes reach pending reviews. On the review, any ingredient or step can be removed (struck through, with Undo) or moved to the other list; a step moved to the ingredients is parsed and matched like any line (`reviewedDraft` in `lib/import/draft.ts` builds what's saved). Imported lines keep `raw_text` and `parse_confidence`; the editor shows the original under a line that's still flagged, until it's edited. Recipes credit their source ("From Test Kitchen ↗"). E2E runs against hand-written pages from `e2e/fixture-server.mjs`.
-   5b. **LLM fallback (M5b, split off 2026-11-26** so M5 needs no API key): Claude Haiku for pages without structured data and for low-confidence lines.
+   5b. ✅ **Done 2026-11-26 (M5b).** LLM fallback: Claude Haiku for pages without structured data and for low-confidence lines (decisions in §3.11). Built: `lib/import/llm.ts` (pure: page text, output schemas, prompts, the page-text and line-word checks), `lib/import/llm-call.ts` (one bounded structured-output call; every failure is null), `lib/llm.ts` (client only when `ANTHROPIC_API_KEY` is set), `llm_calls` (migration 005) for the daily cap and token counts. The review offers an AI reading under a flagged line ("AI suggests" · Use this · Undo) and notes when a whole page was read by AI. E2E runs against a mock `/v1/messages` in `e2e/fixture-server.mjs` (`ANTHROPIC_BASE_URL`).
 6. Photo upload (client resize, Storage, cover/per-step).
 7. **Design pass 2: visual polish (2–3 days).** Do this once real recipes and photos exist, because you can't judge a design against lorem ipsum. Covers the landing/demo page, empty states, mobile layout (people cook from phones), loading skeletons, dark mode. Then seed a public demo account and launch the portfolio here, since this is the first shippable version.
 8. Version history, then cook mode, then search/tags, then shopping list, then cook log. Each feature gets a quick wireframe before you build it, not a separate design phase.
@@ -239,7 +245,7 @@ Recheck these before relying on them. Limits change.
 | cheerio | 1.2.0 | Added in M5 (the latest release). Reads JSON-LD and microdata from imported pages. |
 | @types/node | 24.19.2 | Unverified: match it to the Node version Vercel runs when deploying (local dev is Node 26). |
 
-Not installed yet (added at their milestone): @anthropic-ai/sdk 1.14.0 (M5b). Re-check the version when installing.
+| @anthropic-ai/sdk | 1.14.0 | Added in M5b (published 2026-11-24, outside pnpm's release-age quarantine). Structured output via `messages.parse` + `zodOutputFormat`. |
 
 ## 8. Design (pass 1, decided 2026-11-25)
 

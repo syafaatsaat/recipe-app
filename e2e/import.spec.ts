@@ -252,3 +252,58 @@ test("an import by an account that no longer exists signs out instead of crashin
   await page.goto("/recipes");
   await expect(page).toHaveURL(/\/login/);
 });
+
+// The AI fallback (doc §3.11), against the fixture server's mock of the Claude API.
+test("a page with no recipe data is read by AI: banner, invented lines dropped, a suggestion used", async ({ page }) => {
+  await signUp(page, uniqueEmail("import-ai"));
+  await importLink(page, `${SITE}/green-soup`);
+  await expect(page.getByRole("heading", { name: "Green soup" })).toBeVisible(AFTER_SUBMIT);
+  await expect(page.getByText("This page had no recipe data, so AI read it.")).toBeVisible();
+  await expect(page.getByText("From Weeknight Pot · 4 servings")).toBeVisible();
+  // the mock adds an ingredient that isn't on the page
+  await expect(page.getByText("truffle")).toHaveCount(0);
+
+  const spinach = page.getByRole("listitem").filter({ hasText: "1 cup or 2 handfuls spinach" });
+  await expect(spinach.getByText("Check this one")).toBeVisible();
+  await expect(spinach.getByLabel("AI suggests")).toContainText("spinach");
+  await expect(page.getByText("1 to check")).toBeVisible();
+  await spinach.getByRole("button", { name: /Use the AI’s reading/ }).click();
+  await expect(spinach.getByText("Using the AI’s reading.")).toBeVisible();
+  await expect(page.getByText("All checked")).toBeVisible();
+  // Undo goes back to the parser's reading, and the line is flagged again
+  await spinach.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("1 to check")).toBeVisible();
+  await spinach.getByRole("button", { name: /Use the AI’s reading/ }).click();
+
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, AFTER_SUBMIT);
+  await expect(page.getByRole("heading", { name: "Green soup" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "From Weeknight Pot ↗" })).toHaveAttribute("href", "https://weeknight.example/green-soup");
+  // saved as the AI read it: 1 cup spinach, the alternative kept as a note
+  const saved = page.getByRole("listitem").filter({ hasText: "or 2 handfuls" });
+  await expect(saved).toContainText("1 cup");
+  await expect(saved).toContainText("spinach");
+  await expect(page.getByText("truffle")).toHaveCount(0);
+});
+
+test("pasted text gets AI suggestions for its flagged lines too", async ({ page }) => {
+  await signUp(page, uniqueEmail("import-ai-paste"));
+  await page.goto("/recipes/import?paste=1");
+  await page.getByLabel("Recipe text").filter({ visible: true }).fill(
+    "Spinach eggs\n\nIngredients\n2 eggs\n1 cup or 2 handfuls spinach\n\nMethod\nWilt the spinach, then scramble the eggs into it.",
+  );
+  await page.getByRole("button", { name: "Read pasted text" }).click();
+  await expect(page.getByRole("heading", { name: "Spinach eggs" })).toBeVisible(AFTER_SUBMIT);
+  await expect(page.getByText("This page had no recipe data")).toHaveCount(0);
+  const spinach = page.getByRole("listitem").filter({ hasText: "1 cup or 2 handfuls spinach" });
+  await expect(spinach.getByLabel("AI suggests")).toContainText("or 2 handfuls");
+  // a line the parser reads well gets no suggestion
+  await expect(page.getByRole("listitem").filter({ hasText: "2 eggs" }).getByLabel("AI suggests")).toHaveCount(0);
+});
+
+test("when the AI refuses, the import falls back to paste as before", async ({ page }) => {
+  await signUp(page, uniqueEmail("import-ai-refusal"));
+  await importLink(page, `${SITE}/mystery-stew`);
+  await expect(page.getByText("Couldn’t read a recipe from that page.")).toBeVisible(AFTER_SUBMIT);
+  await expect(page.getByLabel("Paste the text instead").filter({ visible: true })).toBeVisible();
+});

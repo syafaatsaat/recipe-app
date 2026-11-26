@@ -11,8 +11,9 @@
 - [x] **M2: Design pass 1.** Direction E, colour/type tokens mapped to shadcn variables, four screens and their components: doc §8, canvas in `docs/design/`. Stick→oz and user ingredients decided (doc §3.6–3.7). Merged.
 - [x] **M3: auth + manual recipe CRUD** (doc §6 step 3). Email + password (doc §3.8), recipe list/view/editor, user ingredients, versions on every save, keep-alive cron. Merged.
 - [x] **M4: scaling + units on the recipe page** (doc §6 step 4). Chips, scale sheet (factor/yield/pan), US/Metric, Reset, warnings, copy link; state in the URL. Merged.
-- [ ] **M5 awaiting review** (branch `m5-import`): import from a link (JSON-LD, microdata) or pasted text, the ingredient-line parser, the review screen, SSRF guard (doc §6 step 5).
-- [ ] **M5b next:** the Claude Haiku fallback (doc §6 step 5b). Needs an API key.
+- [x] **M5: import** from a link (JSON-LD, microdata) or pasted text, the ingredient-line parser, the review screen, SSRF guard (doc §6 step 5). Merged.
+- [ ] **M5b awaiting review** (branch `m5b-llm`): the Claude Haiku fallback (doc §6 step 5b, §3.11). Off unless `ANTHROPIC_API_KEY` is set; tests never call the real API.
+- [ ] **Next:** photo upload (doc §6 step 6).
 - Later milestones follow doc §6.
 
 ## Non-negotiable rules
@@ -39,5 +40,5 @@
 - `npx supabase start`, then `pnpm db:reset` to apply the migrations and seed
 - `pnpm db:test`: pgTAP schema/RLS tests in `supabase/tests/`
 - `pnpm db:pull`: regenerate `db/schema.ts` after a migration
-- `pnpm test:e2e`: Playwright flows against `pnpm dev` + local Supabase (first time: `npx playwright install chromium`). It also starts `e2e/fixture-server.mjs` (recipe pages on 127.0.0.1:4010). If you start `pnpm dev` yourself, start it as `IMPORT_ALLOW_HOSTS=127.0.0.1:4010 pnpm dev` or the import flows can't fetch them.
+- `pnpm test:e2e`: Playwright flows against `pnpm dev` + local Supabase (first time: `npx playwright install chromium`). It also starts `e2e/fixture-server.mjs` (recipe pages on 127.0.0.1:4010). The same server mocks the Claude API. If you start `pnpm dev` yourself, start it as `IMPORT_ALLOW_HOSTS=127.0.0.1:4010 ANTHROPIC_BASE_URL=http://127.0.0.1:4010 ANTHROPIC_API_KEY=e2e-mock pnpm dev`, or the import flows can't fetch the pages and the AI flows would call the real API (with a real key in `.env.local`) or none.
 - `pnpm lint`, `pnpm build`

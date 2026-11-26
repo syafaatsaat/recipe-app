@@ -25,13 +25,14 @@ export default defineConfig({
   ],
   webServer: [
     {
-      // IMPORT_ALLOW_HOSTS lets the importer fetch the fixture sites below (never in production).
-      // A dev server you started yourself is reused: start it with the same variable.
+      // IMPORT_ALLOW_HOSTS lets the importer fetch the fixture sites below (never in production);
+      // ANTHROPIC_BASE_URL sends the AI fallback to the fixture server's mock, with a dummy key.
+      // A dev server you started yourself is reused: start it with the same variables.
       command: "pnpm dev",
       url: "http://localhost:3000/login",
       reuseExistingServer: true,
       timeout: 120_000,
-      env: { IMPORT_ALLOW_HOSTS: FIXTURE_HOST },
+      env: { IMPORT_ALLOW_HOSTS: FIXTURE_HOST, ANTHROPIC_BASE_URL: `http://${FIXTURE_HOST}`, ANTHROPIC_API_KEY: "e2e-mock" },
     },
     {
       command: "node e2e/fixture-server.mjs",
