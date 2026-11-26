@@ -2,6 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 // End-to-end flows against `pnpm dev` and the local Supabase stack
 // (`npx supabase start` and `pnpm db:reset` first).
+/** hand-written recipe pages for the import flows (e2e/fixture-server.mjs) */
+export const FIXTURE_HOST = "127.0.0.1:4010";
+
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: false,
@@ -20,10 +23,20 @@ export default defineConfig({
     // phone first (doc §8): iPhone-sized viewport, Chromium engine
     { name: "phone", use: { ...devices["iPhone 15"], defaultBrowserType: "chromium" } },
   ],
-  webServer: {
-    command: "pnpm dev",
-    url: "http://localhost:3000/login",
-    reuseExistingServer: true,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      // IMPORT_ALLOW_HOSTS lets the importer fetch the fixture sites below (never in production).
+      // A dev server you started yourself is reused: start it with the same variable.
+      command: "pnpm dev",
+      url: "http://localhost:3000/login",
+      reuseExistingServer: true,
+      timeout: 120_000,
+      env: { IMPORT_ALLOW_HOSTS: FIXTURE_HOST },
+    },
+    {
+      command: "node e2e/fixture-server.mjs",
+      url: `http://${FIXTURE_HOST}/health`,
+      reuseExistingServer: true,
+    },
+  ],
 });
