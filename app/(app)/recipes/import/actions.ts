@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -26,6 +27,7 @@ import { FLAG_BELOW, parseLine } from "@/lib/import/parse-line";
 import { parsePaste } from "@/lib/import/paste";
 import { allowHostsFromEnv, checkUrl } from "@/lib/import/url-guard";
 import { llmClient, llmLog } from "@/lib/llm";
+import { safeImageUrl } from "@/lib/photos/photos";
 import { recipeDraftSchema } from "@/lib/recipes/schema";
 
 export type ImportState = { error?: string; value?: string };
@@ -155,13 +157,29 @@ export async function confirmImport(jobId: string, input: unknown): Promise<{ er
   const draft = recipeDraftSchema.safeParse(input);
   if (!draft.success) return { error: "Some lines can’t be saved. Import again, or write the recipe instead." };
 
+  // the source's photo, shown linked (doc §3.12); the review can't add others
+  const imageUrl = safeImageUrl(payload.data.imageUrl);
+  const imported = imageUrl ? { id: randomUUID(), url: imageUrl } : null;
+  const withPhoto = {
+    ...draft.data,
+    steps: draft.data.steps.map((st) => ({ ...st, photoId: null })),
+    photos: imported ? [{ id: imported.id, width: null, height: null, alt: null }] : [],
+    coverPhotoId: imported?.id ?? null,
+  };
+
   let recipeId: string;
   try {
-    recipeId = await createRecipe(db, userId, draft.data, {
-      sourceType: job.method === "paste" ? "paste" : "import",
-      sourceUrl: payload.data.url ?? job.url,
-      sourceName: payload.data.siteName,
-    });
+    recipeId = await createRecipe(
+      db,
+      userId,
+      withPhoto,
+      {
+        sourceType: job.method === "paste" ? "paste" : "import",
+        sourceUrl: payload.data.url ?? job.url,
+        sourceName: payload.data.siteName,
+      },
+      { imported },
+    );
     await attachRecipe(db, userId, jobId, recipeId);
   } catch (e) {
     return failed("confirmImport failed", e, "Couldn’t save the recipe. Try again.");

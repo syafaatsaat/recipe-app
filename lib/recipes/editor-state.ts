@@ -29,7 +29,20 @@ export interface SectionState {
 export interface StepState {
   key: string;
   body: string;
+  photoId: string | null;
 }
+/** A photo the editor knows about (doc §3.12): its size and alt for the draft, and URLs to show it. */
+export interface PhotoState {
+  id: string;
+  width: number | null;
+  height: number | null;
+  alt: string;
+  /** a signed URL (uploads) or the source link (imported); null until known */
+  src: string | null;
+  thumbSrc: string | null;
+  imported: boolean;
+}
+export type PhotoUrls = Record<string, { src: string | null; thumbSrc: string | null; imported: boolean }>;
 export interface EditorState {
   title: string;
   description: string;
@@ -42,6 +55,9 @@ export interface EditorState {
   ovenUnit: "F" | "C";
   sections: SectionState[];
   steps: StepState[];
+  /** every photo uploaded or loaded in this session; the draft keeps only those in use */
+  photos: Record<string, PhotoState>;
+  coverPhotoId: string | null;
 }
 
 /** Field errors keyed like "title", "line:<key>:amount", "section:<key>:title", "step:<key>". */
@@ -57,7 +73,7 @@ export function newLine(): LineState {
   };
 }
 
-export function toEditorState(draft: RecipeDraft, catalog: Record<string, CatalogIngredient>): EditorState {
+export function toEditorState(draft: RecipeDraft, catalog: Record<string, CatalogIngredient>, urls: PhotoUrls = {}): EditorState {
   return {
     title: draft.title,
     description: draft.description ?? "",
@@ -87,7 +103,14 @@ export function toEditorState(draft: RecipeDraft, catalog: Record<string, Catalo
         parseConfidence: l.parseConfidence,
       })),
     })),
-    steps: draft.steps.map((s) => ({ key: newKey("t"), body: s.body })),
+    steps: draft.steps.map((s) => ({ key: newKey("t"), body: s.body, photoId: s.photoId })),
+    photos: Object.fromEntries(
+      draft.photos.map((p) => [
+        p.id,
+        { id: p.id, width: p.width, height: p.height, alt: p.alt ?? "", ...(urls[p.id] ?? { src: null, thumbSrc: null, imported: false }) },
+      ]),
+    ),
+    coverPhotoId: draft.coverPhotoId,
   };
 }
 
@@ -149,6 +172,14 @@ export function toDraft(s: EditorState): { ok: true; draft: RecipeDraft } | { ok
     for (const sec of s.sections) if (!sec.title.trim()) errors[`section:${sec.key}:title`] = "Name this section.";
   }
 
+  // the photos in use, cover first then by step; one that isn't known is dropped
+  const keptSteps = s.steps.filter((t) => t.body.trim());
+  const known = (id: string | null) => (id !== null && id in s.photos ? id : null);
+  const coverPhotoId = known(s.coverPhotoId);
+  const photos = [coverPhotoId, ...keptSteps.map((t) => known(t.photoId))]
+    .filter((id): id is string => id !== null)
+    .map((id) => ({ id, width: s.photos[id].width, height: s.photos[id].height, alt: s.photos[id].alt }));
+
   const candidate = {
     title: s.title,
     description: s.description,
@@ -160,7 +191,9 @@ export function toDraft(s: EditorState): { ok: true; draft: RecipeDraft } | { ok
     ovenTempC,
     ovenUnit: ovenTempC === null ? null : s.ovenUnit,
     sections,
-    steps: s.steps.filter((t) => t.body.trim()).map((t) => ({ body: t.body })),
+    steps: keptSteps.map((t) => ({ body: t.body, photoId: known(t.photoId) })),
+    photos,
+    coverPhotoId,
   };
   if (!s.title.trim()) errors.title = "Give the recipe a title.";
   if (Object.keys(errors).length) return { ok: false, errors };
@@ -191,6 +224,8 @@ export function issuesToErrors(s: EditorState, issues: readonly { path: readonly
     } else if (p[0] === "steps" && p.length >= 2) {
       const step = steps[Number(p[1])];
       if (step) key = `step:${step.key}`;
+    } else if (p[0] === "photos") {
+      key = "photos";
     } else if (p.length === 1 && ["title", "description", "yieldQty", "yieldUnit", "prepMin", "cookMin", "ovenTempC"].includes(p[0])) {
       key = p[0] === "ovenTempC" ? "ovenTemp" : p[0];
     }

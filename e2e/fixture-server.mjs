@@ -62,6 +62,11 @@ createServer(async (req, res) => {
   }
   const name = new URL(req.url ?? "/", "http://x").pathname.replace(/^\/+/, "");
   if (name === "health") return res.end("ok");
+  // the lemon cake's photo, shown linked from "their" site (doc §3.12)
+  if (name === "cake-photo") {
+    res.writeHead(200, { "content-type": "image/svg+xml" });
+    return res.end('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#e8c547"/></svg>');
+  }
   if (name === "blocked") {
     res.writeHead(403, { "content-type": "text/html" });
     return res.end("<h1>Forbidden</h1>");

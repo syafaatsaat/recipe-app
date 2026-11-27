@@ -51,7 +51,21 @@ export const sectionSchema = z.object({
 });
 export type Section = z.infer<typeof sectionSchema>;
 
-export const stepSchema = z.object({ body: z.string().trim().min(1, "Write the step or remove it.").max(5000) });
+export const stepSchema = z.object({
+  body: z.string().trim().min(1, "Write the step or remove it.").max(5000),
+  /** one of the draft's photos (doc §3.12); the default keeps v1 snapshots readable */
+  photoId: z.uuid().nullable().default(null),
+});
+
+const photoSide = z.number().int().min(1).max(1600).nullable();
+/** A photo the draft uses: an upload (with its resized size) or an imported link (size unknown). */
+export const photoRefSchema = z.object({
+  id: z.uuid(),
+  width: photoSide,
+  height: photoSide,
+  alt: optionalText(200).default(null),
+});
+export type PhotoRef = z.infer<typeof photoRefSchema>;
 
 export const recipeDraftSchema = z
   .object({
@@ -67,6 +81,17 @@ export const recipeDraftSchema = z
     ovenUnit: z.enum(["F", "C"]).nullable().default(null),
     sections: z.array(sectionSchema).min(1).max(20),
     steps: z.array(stepSchema).max(100),
+    /** every photo the recipe uses, each exactly once: as the cover or on one step */
+    photos: z.array(photoRefSchema).max(30).default([]),
+    coverPhotoId: z.uuid().nullable().default(null),
+  })
+  .superRefine((d, ctx) => {
+    const ids = new Set(d.photos.map((p) => p.id));
+    if (ids.size !== d.photos.length) ctx.addIssue({ code: "custom", message: "A photo is listed twice.", path: ["photos"] });
+    const used = [d.coverPhotoId, ...d.steps.map((s) => s.photoId)].filter((id): id is string => id !== null);
+    if (used.some((id) => !ids.has(id))) ctx.addIssue({ code: "custom", message: "That photo isn’t uploaded.", path: ["photos"] });
+    if (new Set(used).size !== used.length) ctx.addIssue({ code: "custom", message: "A photo can be used once.", path: ["photos"] });
+    if (used.length !== ids.size) ctx.addIssue({ code: "custom", message: "Every photo needs a place.", path: ["photos"] });
   })
   .refine((d) => d.sections.length === 1 || d.sections.every((s) => s.title !== null), {
     message: "With more than one section, every section needs a title.",
@@ -93,6 +118,8 @@ export function emptyDraft(): RecipeDraft {
     prepMin: null, cookMin: null, ovenTempC: null, ovenUnit: null,
     sections: [{ title: null, ingredients: [] }],
     steps: [],
+    photos: [],
+    coverPhotoId: null,
   };
 }
 

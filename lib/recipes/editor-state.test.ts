@@ -25,7 +25,7 @@ const draft: RecipeDraft = {
       { ...emptyLine(), name: "flaky salt" },
     ],
   }],
-  steps: [{ body: "Mix." }, { body: "Bake." }],
+  steps: [{ body: "Mix.", photoId: null }, { body: "Bake.", photoId: null }],
 };
 
 const state = () => toEditorState(draft, { [FLOUR.id]: FLOUR });
@@ -64,7 +64,7 @@ describe("toEditorState → toDraft", () => {
   it("drops blank lines and empty steps, keeps °C as typed", () => {
     const s = state();
     s.sections[0].lines.push(newLine());
-    s.steps.push({ key: "x", body: "  " });
+    s.steps.push({ key: "x", body: "  ", photoId: null });
     s.ovenUnit = "C";
     s.ovenTemp = "180";
     s.prepMin = "";
@@ -117,7 +117,7 @@ describe("issuesToErrors", () => {
     const s = state();
     s.sections[0].lines.unshift(newLine()); // blank, dropped on save
     s.sections.push({ key: "s2", title: "Topping", lines: [] });
-    s.steps.unshift({ key: "blank", body: "" });
+    s.steps.unshift({ key: "blank", body: "", photoId: null });
     const [, flour, espresso] = s.sections[0].lines;
     expect(
       issuesToErrors(s, [
@@ -153,3 +153,42 @@ describe("move", () => {
     expect(move([1, 2, 3], 5, -1)).toEqual([1, 2, 3]);
   });
 });
+
+describe("photos in the editor", () => {
+  const A = "11111111-1111-4111-8111-111111111111";
+  const B = "22222222-2222-4222-8222-222222222222";
+  const withPhotos: RecipeDraft = {
+    ...draft,
+    photos: [{ id: A, width: 1600, height: 1200, alt: "Brownies" }, { id: B, width: 1200, height: 1600, alt: null }],
+    coverPhotoId: A,
+    steps: [{ body: "Mix.", photoId: null }, { body: "Bake.", photoId: B }],
+  };
+
+  it("round-trips, with the URLs it's given", () => {
+    const s = toEditorState(withPhotos, { [FLOUR.id]: FLOUR }, { [A]: { src: "https://s/full", thumbSrc: "https://s/thumb", imported: false } });
+    expect(s.photos[A]).toMatchObject({ alt: "Brownies", src: "https://s/full", thumbSrc: "https://s/thumb" });
+    expect(s.photos[B]).toMatchObject({ alt: "", src: null, imported: false });
+    expect(ok(s)).toMatchObject({ photos: withPhotos.photos, coverPhotoId: A, steps: withPhotos.steps });
+  });
+
+  it("keeps a photo with its step when steps move, and drops photos no longer used", () => {
+    const s = toEditorState(withPhotos, { [FLOUR.id]: FLOUR });
+    s.steps = move(s.steps, 1, -1);
+    expect(ok(s).steps).toEqual([{ body: "Bake.", photoId: B }, { body: "Mix.", photoId: null }]);
+    s.coverPhotoId = null;
+    s.steps[0].body = " "; // a blank step goes, and its photo with it
+    expect(ok(s)).toMatchObject({ photos: [], coverPhotoId: null });
+  });
+
+  it("ignores a reference to a photo it doesn't know", () => {
+    const s = toEditorState(draft, { [FLOUR.id]: FLOUR });
+    s.coverPhotoId = A;
+    s.steps[0].photoId = B;
+    expect(ok(s)).toMatchObject({ photos: [], coverPhotoId: null, steps: [{ body: "Mix.", photoId: null }, { body: "Bake.", photoId: null }] });
+  });
+
+  it("puts photo errors on the photos field", () => {
+    expect(issuesToErrors(state(), [{ path: ["photos"], message: "A photo can be used once." }])).toEqual({ photos: "A photo can be used once." });
+  });
+});
+

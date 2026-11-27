@@ -41,7 +41,7 @@ describe("recipeDraftSchema", () => {
     ["zero amount", draft({ sections: [{ title: null, ingredients: [line({ quantity: 0 })] }] }), ""],
     ["unknown unit", draft({ sections: [{ title: null, ingredients: [line({ unitCode: "stick" as never })] }] }), ""],
     ["no sections", draft({ sections: [] }), ""],
-    ["empty step", draft({ steps: [{ body: " " }] }), "Write the step"],
+    ["empty step", draft({ steps: [{ body: " ", photoId: null }] }), "Write the step"],
     [
       "untitled section among several",
       draft({ sections: [{ title: "Batter", ingredients: [] }, { title: null, ingredients: [] }] }),
@@ -90,3 +90,36 @@ describe("conversions", () => {
     expect(gramsPerCupToDensity(236.5882365)).toBe(1);
   });
 });
+
+describe("photos in the draft", () => {
+  const A = "11111111-1111-4111-8111-111111111111";
+  const B = "22222222-2222-4222-8222-222222222222";
+  const ref = (id: string) => ({ id, width: 1600, height: 1200, alt: null });
+  const steps = (a: string | null, b: string | null) => [{ body: "Mix.", photoId: a }, { body: "Bake.", photoId: b }];
+
+  it("old drafts without photos still read (v1 snapshots)", () => {
+    const { photos, coverPhotoId, ...old } = draft();
+    void photos;
+    void coverPhotoId;
+    const r = recipeDraftSchema.parse({ ...old, steps: [{ body: "Mix." }] });
+    expect(r).toMatchObject({ photos: [], coverPhotoId: null, steps: [{ body: "Mix.", photoId: null }] });
+  });
+
+  it("accepts a cover and a step photo, and an imported photo without a size", () => {
+    const r = recipeDraftSchema.safeParse(draft({ photos: [{ id: A, width: null, height: null, alt: " Cake " }, ref(B)], coverPhotoId: A, steps: steps(null, B) }));
+    expect(r.success && r.data.photos[0].alt).toBe("Cake");
+  });
+
+  it.each([
+    ["an unknown cover", { photos: [], coverPhotoId: A }],
+    ["an unknown step photo", { photos: [], steps: steps(A, null) }],
+    ["a photo used twice", { photos: [ref(A)], coverPhotoId: A, steps: steps(A, null) }],
+    ["two steps sharing one", { photos: [ref(A)], steps: steps(A, A) }],
+    ["a photo nobody uses", { photos: [ref(A)] }],
+    ["a photo listed twice", { photos: [ref(A), ref(A)], coverPhotoId: A }],
+    ["a photo bigger than an upload can be", { photos: [{ ...ref(A), width: 4000 }], coverPhotoId: A }],
+  ])("refuses %s", (_, over) => {
+    expect(recipeDraftSchema.safeParse(draft(over as Partial<RecipeDraft>)).success).toBe(false);
+  });
+});
+

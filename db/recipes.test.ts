@@ -38,7 +38,9 @@ const brownies = (): RecipeDraft => ({
       ],
     },
   ],
-  steps: [{ body: "Heat the oven." }, { body: "Mix and bake." }],
+  steps: [{ body: "Heat the oven.", photoId: null }, { body: "Mix and bake.", photoId: null }],
+  photos: [],
+  coverPhotoId: null,
 });
 
 beforeAll(async () => {
@@ -75,7 +77,7 @@ describe("recipes", () => {
       { title: "Batter", ingredients: d.sections[0].ingredients.slice(0, 2) },
       { title: "Topping", ingredients: d.sections[0].ingredients.slice(3) },
     ];
-    d.steps = [{ body: "One bowl." }];
+    d.steps = [{ body: "One bowl.", photoId: null }];
     expect(await updateRecipe(db, ALICE, id, d, "less sugar")).toBe(2);
 
     const r = await getRecipe(db, ALICE, id);

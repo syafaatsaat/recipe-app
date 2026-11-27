@@ -89,7 +89,7 @@ export function toImportDraft(x: ExtractedRecipe): ImportDraft {
 
   const y = parseYield(x.yieldText);
   const oven = ovenFromSteps(x.steps);
-  const steps = x.steps.slice(0, MAX_STEPS).map((body) => ({ body: body.slice(0, 5000) }));
+  const steps = x.steps.slice(0, MAX_STEPS).map((body) => ({ body: body.slice(0, 5000), photoId: null }));
 
   const draft: RecipeDraft = {
     title: (x.title ?? "").slice(0, 200).trim() || "Imported recipe",
@@ -106,6 +106,8 @@ export function toImportDraft(x: ExtractedRecipe): ImportDraft {
       ingredients: g.lines.map((p) => importedLine(p)),
     })),
     steps,
+    photos: [],
+    coverPhotoId: null,
   };
   return {
     draft,
@@ -181,7 +183,7 @@ export function reviewedDraft(draft: RecipeDraft, c: ReviewChoices, parsed?: rea
     s.ingredients
       .map((l, li) => ({ l, key: lineKey(si, li) }))
       .filter(({ key }) => movedLines.has(key) && !c.removedLines.has(key))
-      .map(({ l }) => ({ body: (l.rawText ?? l.name).slice(0, 5000) })),
+      .map(({ l }) => ({ body: (l.rawText ?? l.name).slice(0, 5000), photoId: null })),
   );
   return {
     ...draft,
