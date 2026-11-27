@@ -43,4 +43,5 @@
 - `pnpm db:pull`: regenerate `db/schema.ts` after a migration
 - `pnpm test:e2e`: Playwright flows against `pnpm dev` + local Supabase (first time: `npx playwright install chromium`). It also starts `e2e/fixture-server.mjs` (recipe pages on 127.0.0.1:4010). The same server mocks the Claude API. If you start `pnpm dev` yourself, start it as `IMPORT_ALLOW_HOSTS=127.0.0.1:4010 ANTHROPIC_BASE_URL=http://127.0.0.1:4010 ANTHROPIC_API_KEY=e2e-mock pnpm dev`, or the import flows can't fetch the pages and the AI flows would call the real API (with a real key in `.env.local`) or none.
 - `pnpm lint`, `pnpm build`
+- Deploying (Vercel + hosted Supabase), shipping a migration, and first-deploy pitfalls: [docs/deploy.md](docs/deploy.md)
 - Next dev may keep a stale server action after its imports change (seen in M6): if an action behaves like older code, change the action file's content (a touch isn't enough) or restart `pnpm dev`.
